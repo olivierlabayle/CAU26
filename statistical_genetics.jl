@@ -61,14 +61,39 @@ ATE_{Y, V} = \begin{cases}
 md"""
 ## Confounding
 
-In order to identify genetic effects via backdoor adjustment, we need to identify potential sources of confounding.
+In order to identify genetic effects via backdoor adjustment, we need to identify potential sources of confounding. Since and individual's genome is fixed at birth, genetic associations are sometimes believed to be a gold standard for causality. However, genetic associations are in fact heavily confounded via two main mechanisms that we briefly outline below.
 
 ### Ancestry
 
+Due to evolutionary constraints, mating between two individuals is not necessarily random. In particular, different genetic ancestries exhibit significant differences that can confound genetic effects.
+
+!!! note
+	In large scale genome-wide association studies, this is typically adjusted for using some form of an "estimated ancestry" via principal component analysis or mixed-linear models. This can be thought as a form of causal representation learning.
+
+
 ### Crossing Over
 
-![Crossing Over](./assets/crossingover.png)
+During meiosis, maternal and paternal chromosomes cross-over leading to non-random association of nearby genetic variants known as LD blocks as displayed below.
 
+![Crossing Over](https://github.com/olivierlabayle/CAU26/blob/80d353f3c3080f27d2d09723dfd70074d280700c/assets/crossing_over.png?raw=true)
+
+!!! note
+	In principle, adjusting for nearby variants has the potential to adjust for this source of confounding. This is what the field of statistical finemapping aims to achieve. However the computational demand and the extreme correlations make it difficult to run genome-wide.
+
+We are now ready to dive in!
+"""
+
+# ╔═╡ 4dbb0069-82e8-4543-8908-9fb27ba2f730
+md"""
+## Practical
+
+### The Data Generating Process
+
+For the purpose of this tutorial we will use semi-synthetic data.
+- The genotypes were downloaded from the [1000 Genome Project](https://www.internationalgenome.org/data/)
+- The outcome is simulated against a known parametric model
+
+This ensures that we know what are the true genetic effects while keeping the dataset somewhat realistic.
 """
 
 # ╔═╡ 68b178b3-a449-43e1-8b15-5870b445e0cb
@@ -699,6 +724,7 @@ version = "5.15.0+0"
 # ╟─1a9d5e24-fd74-4e38-ba1e-de5bb510d335
 # ╠═f6436768-93d1-41c3-83a7-d6526c2cbfcc
 # ╠═824d165c-8846-489b-ad5e-87d695a6abcf
+# ╠═4dbb0069-82e8-4543-8908-9fb27ba2f730
 # ╠═68b178b3-a449-43e1-8b15-5870b445e0cb
 # ╠═bb016adc-900c-11f1-b577-8d7517c8c1f4
 # ╠═7a64cea7-e173-498a-a228-ef266d074305

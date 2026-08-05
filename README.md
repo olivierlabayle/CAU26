@@ -1,8 +1,10 @@
 # CAU26
 
-Practicals for Causality in biomedicine: going beyond associations.
+This repository hosts the tutorials I led during the [Causality in biomedicine: going beyond associations](https://www.ebi.ac.uk/training/events/causality-in-biomedicine-2026/) course at EMBL-EBI during the 4 – 9 October 2026.
 
 # Setup
+
+0. Install [plink2](https://www.cog-genomics.org/plink/2.0/)
 
 1. Install Julia
 
