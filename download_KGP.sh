@@ -27,7 +27,7 @@ download_file() {
   fi
 
   echo "Downloading ${target}..."
-  wget --continue --tries=5 --timeout=30 --retry-connrefused --waitretry=5 --progress=dot:giga "${url}" -O "${target}"
+  wget --continue --tries=5 --timeout=30 --retry-connrefused --waitretry=5 "${url}" -O "${target}"
 }
 
 convert_vcf_to_pgen() {
@@ -51,7 +51,7 @@ for chr in "${CHROMOSOMES[@]}"; do
   convert_vcf_to_pgen "${filename}" "chr${chr}"
 done
 
-merge_list_file="kgp/merge_list.txt" > "${merge_list_file}"
+merge_list_file="merge_list.txt" > "${merge_list_file}"
 for chr in "${CHROMOSOMES[@]}"; do
   echo "chr${chr}" >> "${merge_list_file}"
 done
