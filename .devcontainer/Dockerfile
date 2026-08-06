@@ -6,8 +6,17 @@ RUN apt-get update && apt-get install -y \
     git \
     wget \
     ca-certificates \
+    wget \
     libssl-dev \
+    libblas-dev \
+    liblapack-dev \
+    libopenblas-dev \
     libffi-dev \
+    zlib1g-dev \
+    unzip \
+    procps \
+    clang \
+    cmake \
     && rm -rf /var/lib/apt/lists/*
 
 # Install PLINK2

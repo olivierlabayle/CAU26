@@ -10,8 +10,6 @@ begin
 	using CairoMakie
 	using CSV
 	using Distributions
-	using CategoricalArrays
-	using ColorSchemes
 end
 
 # ╔═╡ 32fd4709-5ac0-4143-8eb3-e663577fd62f
@@ -1937,7 +1935,7 @@ version = "4.1.0+0"
 """
 
 # ╔═╡ Cell order:
-# ╠═32fd4709-5ac0-4143-8eb3-e663577fd62f
+# ╟─32fd4709-5ac0-4143-8eb3-e663577fd62f
 # ╠═91689954-fed3-4380-8d15-16c3954a5b46
 # ╟─7289158a-4d08-476a-97d7-907940ef5b91
 # ╟─045e7bb8-f4eb-4bac-9b1c-30687b2d77f8
