@@ -10,6 +10,7 @@ begin
 	using CairoMakie
 	using CSV
 	using Distributions
+	using DelimitedFiles
 end
 
 # ╔═╡ 32fd4709-5ac0-4143-8eb3-e663577fd62f
@@ -140,7 +141,7 @@ begin
 	tmpdir = mktempdir()
     out_prefix = joinpath(tmpdir, "$(chr)_$(bp_start)_$(bp_end)")
 	run(`plink2 --bfile $(genotypes_prefix) \
-        --r-unphased \
+        --r-unphased square \
         --chr $chr \
         --from-bp $(bp_start) \
         --to-bp $(bp_end) \
@@ -149,7 +150,17 @@ begin
 end
 
 # ╔═╡ b701aab9-259d-43c4-89c2-24ccfb3d8b8f
+correlations = readdlm("toto.unphased.vcor1")
 
+# ╔═╡ ee83f0d3-a9d9-4d5a-bb9b-1058c13fbbe2
+begin
+	n = size(correlations, 1)
+	fig_c = Figure()
+	ax_c = Axis(fig[1, 1])
+	hm = heatmap!(ax_c, 1:n, 1:n, correlations)
+	Colorbar(fig[:, end+1], hm)
+	fig_c
+end
 
 # ╔═╡ 4dbb0069-82e8-4543-8908-9fb27ba2f730
 md"""
@@ -164,24 +175,18 @@ For the purpose of this tutorial we will use semi-synthetic data.
 This ensures that we know what are the true genetic effects while keeping the dataset somewhat realistic.
 """
 
-# ╔═╡ 7a64cea7-e173-498a-a228-ef266d074305
-unwrap.(superpop_cat)
-
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
-CategoricalArrays = "324d7699-5711-5eae-9e2f-1d82baa6b597"
-ColorSchemes = "35d6a980-a343-548e-a6ea-1d62b119f2f4"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 
 [compat]
 CSV = "~0.10.16"
 CairoMakie = "~0.15.13"
-CategoricalArrays = "~1.1.1"
-ColorSchemes = "~3.31.0"
 DataFrames = "~1.8.2"
 Distributions = "~0.25.130"
 """
@@ -192,7 +197,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.12.6"
 manifest_format = "2.0"
-project_hash = "0a91e179028d5681e64cfe67ae4713877b82423d"
+project_hash = "62987cb820c6e318b3868b089723f00adc5b5b10"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -350,28 +355,6 @@ deps = ["Artifacts", "Bzip2_jll", "CompilerSupportLibraries_jll", "Fontconfig_jl
 git-tree-sha1 = "1fa950ebc3e37eccd51c6a8fe1f92f7d86263522"
 uuid = "83423d85-b0ee-5818-9007-b63ccbeb887a"
 version = "1.18.7+0"
-
-[[deps.CategoricalArrays]]
-deps = ["Compat", "DataAPI", "Future", "Missings", "Printf", "Requires", "Statistics", "Unicode"]
-git-tree-sha1 = "20ff1463035a170b25eba2ef9823bb9ad51635e4"
-uuid = "324d7699-5711-5eae-9e2f-1d82baa6b597"
-version = "1.1.1"
-
-    [deps.CategoricalArrays.extensions]
-    CategoricalArraysArrowExt = "Arrow"
-    CategoricalArraysJSONExt = "JSON"
-    CategoricalArraysRecipesBaseExt = "RecipesBase"
-    CategoricalArraysSentinelArraysExt = "SentinelArrays"
-    CategoricalArraysStatsBaseExt = "StatsBase"
-    CategoricalArraysStructTypesExt = "StructTypes"
-
-    [deps.CategoricalArrays.weakdeps]
-    Arrow = "69666777-d1a9-59fb-9406-91d4454c9d45"
-    JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
-    RecipesBase = "3cdcf5f2-1ef4-517c-9805-6587b60abb01"
-    SentinelArrays = "91c51154-3ec4-41a3-a24f-3f23e20d615c"
-    StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
-    StructTypes = "856f2bd8-1eba-4b0a-8007-ebc267875bd4"
 
 [[deps.ChainRulesCore]]
 deps = ["Compat", "LinearAlgebra"]
@@ -533,6 +516,12 @@ deps = ["AdaptivePredicates", "EnumX", "ExactPredicates", "Random"]
 git-tree-sha1 = "c55f5a9fd67bdbc8e089b5a3111fe4292986a8e8"
 uuid = "927a84f5-c5f4-47a5-9785-b46e178433df"
 version = "1.6.6"
+
+[[deps.DelimitedFiles]]
+deps = ["Mmap"]
+git-tree-sha1 = "9e2f36d3c96a820c678f2f1f1782582fcf685bae"
+uuid = "8bb1440f-4735-579b-a4ab-409b98df4dab"
+version = "1.9.1"
 
 [[deps.Distributed]]
 deps = ["Random", "Serialization", "Sockets"]
@@ -1947,7 +1936,7 @@ version = "4.1.0+0"
 # ╠═f1cc35f8-373c-4b28-93b2-f7fc2d27462e
 # ╠═0500faec-7d61-4a95-9a7d-d41ed6769a67
 # ╠═b701aab9-259d-43c4-89c2-24ccfb3d8b8f
+# ╠═ee83f0d3-a9d9-4d5a-bb9b-1058c13fbbe2
 # ╠═4dbb0069-82e8-4543-8908-9fb27ba2f730
-# ╠═7a64cea7-e173-498a-a228-ef266d074305
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
