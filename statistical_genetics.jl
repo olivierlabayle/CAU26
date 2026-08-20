@@ -133,34 +133,29 @@ During meiosis, maternal and paternal chromosomes cross-over leading to non-rand
 We are now ready to dive in!
 """
 
-# ╔═╡ 0500faec-7d61-4a95-9a7d-d41ed6769a67
-begin
-    chr      = 6
-    bp_start = 29000000
-    bp_end   = 33000000
-	tmpdir = mktempdir()
+# ╔═╡ ee83f0d3-a9d9-4d5a-bb9b-1058c13fbbe2
+function plotLD(;chr=1, bp_start=100_000_000, window=2_000_000)
+    bp_end   = bp_start + window
+	tmpdir   = mktempdir()
     out_prefix = joinpath(tmpdir, "$(chr)_$(bp_start)_$(bp_end)")
-	run(`plink2 --bfile $(genotypes_prefix) \
-        --r-unphased square \
+	run(`plink2 --pfile $(genotypes_prefix) \
+        --r2-unphased square \
         --chr $chr \
         --from-bp $(bp_start) \
         --to-bp $(bp_end) \
-        --ld-window-r2 0 \
         --out $(out_prefix)`)
-end
-
-# ╔═╡ b701aab9-259d-43c4-89c2-24ccfb3d8b8f
-correlations = readdlm("toto.unphased.vcor1")
-
-# ╔═╡ ee83f0d3-a9d9-4d5a-bb9b-1058c13fbbe2
-begin
+    correlations = readdlm(string(out_prefix, ".unphased.vcor2"))
+	rm(tmpdir, force=true, recursive=true)
 	n = size(correlations, 1)
 	fig_c = Figure()
-	ax_c = Axis(fig[1, 1])
+	ax_c = Axis(fig_c[1, 1])
 	hm = heatmap!(ax_c, 1:n, 1:n, correlations)
-	Colorbar(fig[:, end+1], hm)
-	fig_c
+	Colorbar(fig_c[:, end+1], hm)
+	return fig_c
 end
+
+# ╔═╡ 4413904b-ab45-4aa5-998b-1880d3b8f0ed
+plotLD(chr=6, bp_start=130_000_000, window=2_000_000)
 
 # ╔═╡ 4dbb0069-82e8-4543-8908-9fb27ba2f730
 md"""
@@ -1934,9 +1929,8 @@ version = "4.1.0+0"
 # ╠═3e9172e6-0017-4f9e-8f6e-64c2d373867c
 # ╟─6a79c8ac-bd42-4660-ab1f-24a8c74d9811
 # ╠═f1cc35f8-373c-4b28-93b2-f7fc2d27462e
-# ╠═0500faec-7d61-4a95-9a7d-d41ed6769a67
-# ╠═b701aab9-259d-43c4-89c2-24ccfb3d8b8f
 # ╠═ee83f0d3-a9d9-4d5a-bb9b-1058c13fbbe2
+# ╠═4413904b-ab45-4aa5-998b-1880d3b8f0ed
 # ╠═4dbb0069-82e8-4543-8908-9fb27ba2f730
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
