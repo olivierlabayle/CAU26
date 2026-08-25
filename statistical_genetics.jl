@@ -368,41 +368,89 @@ md"""
 
 # ╔═╡ a896f42e-a697-4e68-9cc5-78297ec8e615
 md"""
-### Non-Parametric Models
+### Non-Linear Models
 
 In general, we do not know the generating mechanism and assuming linearity can lead to incorrect inference. In this section we will demonstrate how model misspecification can lead to such conclusions and how to correct it using more robust estimators.
 
 ```math
 Y = 2 \cdot 1[V_1\geq 1] - \sin(V_1 \cdot V_2) + 1[V_2\geq 2] \cdot S - 0.5 \cdot V_1 \cdot V_2 \cdot S + 1.5 \cdot PC_1 \cdot PC2 + \epsilon
 ```
+
+**Questions**
+- What is the ``ATE_{Y, V_1}``? Can you compute it?
 """
 
-# ╔═╡ 6dc959bb-810f-4ab3-8087-e5e81217948a
-nonlinear_outcome_model(V1, V2, S, PC1, PC2) = 2 .* (V1 .>= 1) .- sin.(V1 .* V2) .+ (V2 .>= 2) .*  S .- 0.5 .* V1 .* V2 .* S .+ 1.5 .* PC1 .* PC2
+# ╔═╡ 2259cefb-376c-4080-a0ad-2f2bdc9bd72d
+md"""We will use these two variants as an example"""
+
+# ╔═╡ 46ca023e-7e33-47f2-927d-112a6659c708
+begin
+    V1 = "6:131602968:T:C_T"
+    V2 = "6:131610622:T:G_T"
+end;
 
 # ╔═╡ f8520f83-8368-4768-9d06-aa3b4802dec0
-function generate_nonlinear_dataset(rng, base_pcs, covariates, LD_model;
-	V1 = "6:131602968:T:C_T",
-	V2 = "6:131610622:T:G_T"
-	)
-    dataset = sample_genotypes(rng, base_pcs, LD_model)
-	DataFrames.select!(dataset, :IID, :PC1, :PC2, V1 => :V1, V2 => :V2)
-	dataset = innerjoin(
-		dataset, 
-		DataFrames.select(covariates, 
+begin
+	variant_name(v::AbstractString) = v
+	variant_name(v::Pair) = variant_name(v[1])
+
+	nonlinear_outcome_model(V1, V2, S, PC1, PC2) = 2 .* (V1 .>= 1) .- sin.(V1 .* V2) .+ (V2 .>= 2) .*  S .- 0.5 .* V1 .* V2 .* S .+ 1.5 .* PC1 .* PC2
+	
+	function generate_nonlinear_dataset(rng, base_pcs, covariates, LD_model;
+		V1 = "6:131602968:T:C_T",
+		V2 = "6:131610622:T:G_T"
+		)
+	    dataset = sample_genotypes(rng, base_pcs, LD_model)
+		DataFrames.select!(dataset, 
 			:IID, 
-			:GENDER => 
-				ByRow(x -> x == "female" ? 1 : x == "male" ? 0 : missing) => :SEX
-		),
-		on=:IID
-	)
-	V1_vals = unwrap.(dataset.V1)
-	V2_vals = unwrap.(dataset.V2)
-	S_vals = dataset.SEX
-	PC1_vals = dataset.PC1
-	PC2_vals = dataset.PC2
-	dataset.Y = nonlinear_outcome_model(V1_vals, V2_vals, S_vals, PC1_vals, PC2_vals) .+ rand(rng, Normal(0, 1), nrow(dataset))
-	return dataset
+			:PC1, 
+			:PC2, 
+			variant_name(V1) => (x -> unwrap.(x)) => :V1, 
+			variant_name(V2) => (x -> unwrap.(x)) => :V2
+		)
+		dataset = innerjoin(
+			dataset,
+			DataFrames.select(covariates, 
+				:IID, 
+				:GENDER =>
+					ByRow(x -> x == "female" ? 1 : x == "male" ? 0 : missing) => :SEX
+			),
+			on=:IID
+		)
+		n = nrow(dataset)
+		V1_vals = V1 isa Pair ? fill(V1[2], n) : dataset.V1
+		V2_vals = V2 isa Pair ? fill(V2[2], n) : dataset.V2
+		S_vals = dataset.SEX
+		PC1_vals = dataset.PC1
+		PC2_vals = dataset.PC2
+		dataset.Y = nonlinear_outcome_model(V1_vals, V2_vals, S_vals, PC1_vals, PC2_vals) .+ rand(rng, Normal(0, 1), n)
+		return dataset
+	end
+
+	function approx_mean(rng, base_pcs, covariates, LD_model;
+		V1 = "6:131602968:T:C_T",
+		V2 = "6:131610622:T:G_T")
+		dataset = generate_nonlinear_dataset(rng, base_pcs, covariates, LD_model;
+		V1 = V1,
+		V2 = V2
+		)
+		return mean(dataset.Y)
+	end
+
+	function approx_ATE_V1(rng, base_pcs, covariates, LD_model;
+		V1 = "6:131602968:T:C_T",
+		V2 = "6:131610622:T:G_T")
+		EY_0 = approx_mean(rng, base_pcs, covariates, LD_model;
+			V1 = V1 => 0,
+			V2 = V2)
+		EY_1 = approx_mean(rng, base_pcs, covariates, LD_model;
+			V1 = V1 => 1,
+			V2 = V2)
+		EY_2 = approx_mean(rng, base_pcs, covariates, LD_model;
+			V1 = V1 => 2,
+			V2 = V2)
+		return (ATE_0_to_1 = EY_1-EY_0, ATE_1_to_2 = EY_2-EY_1)
+	end
 end
 
 # ╔═╡ 3c9de2fe-7996-4bc4-8723-78996caa1e82
@@ -410,6 +458,28 @@ nonlinear_dataset = generate_nonlinear_dataset(rng, base_pcs, covariates, LD_mod
 	V1 = "6:131602968:T:C_T",
 	V2 = "6:131610622:T:G_T"
 	)
+
+# ╔═╡ 1543ea00-dec6-4531-8bdc-ca3a4cbe6440
+ATE_V1 = approx_ATE_V1(rng, base_pcs, covariates, LD_model;
+	V1 = V1,
+	V2 = V2)
+
+# ╔═╡ d36f9c8f-11e0-42fe-badb-eb4b7237ca8f
+md"""
+**Questions**
+- Rerun the linear model estimator and check whether the results are correct.
+"""
+
+# ╔═╡ 6da7b36d-1e96-4d61-9c05-9ad73a7592a0
+# Type here
+
+# ╔═╡ d75a5e2c-543d-4b5a-a67c-b8db02ad772f
+md"""
+Estimators from the causal inference literature provide a more robust approach to the estimation of causal effects.
+"""
+
+# ╔═╡ 2819d2a0-95be-4c50-816c-b1a20a1d1547
+tmle = TMLE()
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -2777,9 +2847,15 @@ version = "4.1.0+0"
 # ╟─bb4d9026-1190-4f16-b690-0e4bbf1a6108
 # ╠═a59c3b8f-6824-4f0e-bbd0-f4a4fa3bf013
 # ╟─7c7a4c22-bced-4dff-abe5-ac58c053b620
-# ╟─a896f42e-a697-4e68-9cc5-78297ec8e615
-# ╠═6dc959bb-810f-4ab3-8087-e5e81217948a
-# ╠═f8520f83-8368-4768-9d06-aa3b4802dec0
+# ╠═a896f42e-a697-4e68-9cc5-78297ec8e615
+# ╟─2259cefb-376c-4080-a0ad-2f2bdc9bd72d
+# ╠═46ca023e-7e33-47f2-927d-112a6659c708
+# ╟─f8520f83-8368-4768-9d06-aa3b4802dec0
 # ╠═3c9de2fe-7996-4bc4-8723-78996caa1e82
+# ╠═1543ea00-dec6-4531-8bdc-ca3a4cbe6440
+# ╟─d36f9c8f-11e0-42fe-badb-eb4b7237ca8f
+# ╠═6da7b36d-1e96-4d61-9c05-9ad73a7592a0
+# ╠═d75a5e2c-543d-4b5a-a67c-b8db02ad772f
+# ╠═2819d2a0-95be-4c50-816c-b1a20a1d1547
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
