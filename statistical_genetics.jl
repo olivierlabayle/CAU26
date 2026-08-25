@@ -189,9 +189,6 @@ begin
 	fig_LD
 end
 
-# ╔═╡ 5ed4da6a-b25b-4b87-a3a6-667c56ffc5bc
-
-
 # ╔═╡ 4dbb0069-82e8-4543-8908-9fb27ba2f730
 md"""
 ## Practical
@@ -327,9 +324,10 @@ Y = \alpha \cdot V_c + \beta_1 \cdot PC_1 + \beta_2 \cdot PC_2 + \epsilon, \epsi
 
 where ``Vc \in \{0,1,2\}`` counts the number of ``A_1`` alleles.
 
-**Question**
+**Questions**
 
-What is the definition of the ``ATE_{Y, V_c}`` in this model? Can you compute it exactly?
+- What is the definition of the ``ATE_{Y, V_c}`` in this model? What assumption does it make compared to the initial definition we discussed?
+- Can you compute it exactly?
 """
 
 # ╔═╡ c097871b-a349-4448-91ad-4c6c68786e98
@@ -373,6 +371,10 @@ md"""
 ### Non-Parametric Models
 
 In general, we do not know the generating mechanism and assuming linearity can lead to incorrect inference. In this section we will demonstrate how model misspecification can lead to such conclusions and how to correct it using more robust estimators.
+
+```math
+Y = 2 \cdot 1[V_1\geq 1] - \sin(V_1 \cdot V_2) + 1[V_2\geq 2] \cdot S - 0.5 \cdot V_1 \cdot V_2 \cdot S + 1.5 \cdot PC_1 \cdot PC2 + \epsilon
+```
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
@@ -2725,7 +2727,6 @@ version = "4.1.0+0"
 # ╟─6a79c8ac-bd42-4660-ab1f-24a8c74d9811
 # ╟─f1cc35f8-373c-4b28-93b2-f7fc2d27462e
 # ╠═4413904b-ab45-4aa5-998b-1880d3b8f0ed
-# ╠═5ed4da6a-b25b-4b87-a3a6-667c56ffc5bc
 # ╟─4dbb0069-82e8-4543-8908-9fb27ba2f730
 # ╟─768a7b01-3392-457c-afd3-b49ec3ff0007
 # ╟─db080d57-3e4e-405c-9a3e-e71ddf4273f6
