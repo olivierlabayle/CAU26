@@ -377,6 +377,40 @@ Y = 2 \cdot 1[V_1\geq 1] - \sin(V_1 \cdot V_2) + 1[V_2\geq 2] \cdot S - 0.5 \cdo
 ```
 """
 
+# ╔═╡ 6dc959bb-810f-4ab3-8087-e5e81217948a
+nonlinear_outcome_model(V1, V2, S, PC1, PC2) = 2 .* (V1 .>= 1) .- sin.(V1 .* V2) .+ (V2 .>= 2) .*  S .- 0.5 .* V1 .* V2 .* S .+ 1.5 .* PC1 .* PC2
+
+# ╔═╡ f8520f83-8368-4768-9d06-aa3b4802dec0
+function generate_nonlinear_dataset(rng, base_pcs, covariates, LD_model;
+	V1 = "6:131602968:T:C_T",
+	V2 = "6:131610622:T:G_T"
+	)
+    dataset = sample_genotypes(rng, base_pcs, LD_model)
+	DataFrames.select!(dataset, :IID, :PC1, :PC2, V1 => :V1, V2 => :V2)
+	dataset = innerjoin(
+		dataset, 
+		DataFrames.select(covariates, 
+			:IID, 
+			:GENDER => 
+				ByRow(x -> x == "female" ? 1 : x == "male" ? 0 : missing) => :SEX
+		),
+		on=:IID
+	)
+	V1_vals = unwrap.(dataset.V1)
+	V2_vals = unwrap.(dataset.V2)
+	S_vals = dataset.SEX
+	PC1_vals = dataset.PC1
+	PC2_vals = dataset.PC2
+	dataset.Y = nonlinear_outcome_model(V1_vals, V2_vals, S_vals, PC1_vals, PC2_vals) .+ rand(rng, Normal(0, 1), nrow(dataset))
+	return dataset
+end
+
+# ╔═╡ 3c9de2fe-7996-4bc4-8723-78996caa1e82
+nonlinear_dataset = generate_nonlinear_dataset(rng, base_pcs, covariates, LD_model;
+	V1 = "6:131602968:T:C_T",
+	V2 = "6:131610622:T:G_T"
+	)
+
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
@@ -2717,7 +2751,7 @@ version = "4.1.0+0"
 # ╠═91689954-fed3-4380-8d15-16c3954a5b46
 # ╠═c6aeb8e6-ff54-4874-a507-fb94d19179d0
 # ╠═d0b2e225-292e-4b8b-b91c-743a6c72ab90
-# ╠═2995e9b6-bbe6-4560-9256-77cc5dd735ea
+# ╟─2995e9b6-bbe6-4560-9256-77cc5dd735ea
 # ╟─7289158a-4d08-476a-97d7-907940ef5b91
 # ╟─045e7bb8-f4eb-4bac-9b1c-30687b2d77f8
 # ╟─1a9d5e24-fd74-4e38-ba1e-de5bb510d335
@@ -2738,11 +2772,14 @@ version = "4.1.0+0"
 # ╟─7b4cb75b-86cf-43c8-b32a-159feb95e59f
 # ╠═0247c1ff-4c87-48bd-bb65-18be49d55130
 # ╟─f7ea1ca0-fe62-41c1-9eb5-e35e6842f69c
-# ╟─c097871b-a349-4448-91ad-4c6c68786e98
+# ╠═c097871b-a349-4448-91ad-4c6c68786e98
 # ╠═b560a0d2-3349-4333-ae1b-3abae4fd6774
 # ╟─bb4d9026-1190-4f16-b690-0e4bbf1a6108
 # ╠═a59c3b8f-6824-4f0e-bbd0-f4a4fa3bf013
 # ╟─7c7a4c22-bced-4dff-abe5-ac58c053b620
-# ╠═a896f42e-a697-4e68-9cc5-78297ec8e615
+# ╟─a896f42e-a697-4e68-9cc5-78297ec8e615
+# ╠═6dc959bb-810f-4ab3-8087-e5e81217948a
+# ╠═f8520f83-8368-4768-9d06-aa3b4802dec0
+# ╠═3c9de2fe-7996-4bc4-8723-78996caa1e82
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
