@@ -5,7 +5,7 @@ This repository hosts the tutorials I led during the [Causality in biomedicine: 
 ## Statistical Genetics : A Causal Inference Perspective
 
 ```bash
-julia --project=/
+docker run -it olivierlabayle/cau26:main julia --sysimage=pluto_sys.so --project=. --startup-file=no -t auto -e 'import Pluto; Pluto.run(require_secret_for_access=false)'
 ```
 
 ## Setup
