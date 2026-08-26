@@ -45,6 +45,8 @@ EOF
 
 FROM dev AS prod
 
+COPY . /workspaces/CAU26
+
 WORKDIR /workspaces/CAU26
 
 RUN julia --project=. -e 'using Pkg; Pkg.instantiate()'
