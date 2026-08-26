@@ -25,20 +25,15 @@ begin
 	using Colors
 end
 
-# ╔═╡ 32fd4709-5ac0-4143-8eb3-e663577fd62f
-md"""
-Importing relevant packages
-"""
-
 # ╔═╡ c6aeb8e6-ff54-4874-a507-fb94d19179d0
 function plot_digraph()
-    g = SimpleDiGraph(Edge.([ (1, 2), (1, 3), (2, 3) ]))
+    g = SimpleDiGraph(Edge.([ (1, 2), (1, 3), (2, 3), (4, 3) ]))
         
     fig, ax, p = graphplot(g;
                         node_size=60,
-                        ilabels=["PC1,2", "V", "Y"],
+                        ilabels=["PC1,2", L"\textbf{V}", "Y", "S"],
                         arrow_shift=:end)
-    xlims!(ax, (-3., 3.))
+    xlims!(ax, (-3., 4.))
     ylims!(ax, (-3., 3.))
     hidedecorations!(ax); hidespines!(ax); ax.aspect = DataAspect()
     return fig
@@ -122,9 +117,8 @@ At `chr1:84783937`, Alice has inherited an **A** nucleotide from her mom and a *
 !!! note
 	We will ignore the fact that the ordered "haplotype" **AG/CC** is a more accurate representation of Alice's DNA and will only consider the unordered "genotype" **A/C, G/C**.
 
-!!! question "Questions"
-
-- What is a potential definition for the average treatment effect (ATE) of variant ``V`` with alleles **A** and **T** on a human trait ``Y``?
+!!! question "Question"
+	What is a potential definition for the average treatment effect (ATE) of variant ``V`` with alleles **A** and **T** on a human trait ``Y``?
 """
 
 # ╔═╡ f6436768-93d1-41c3-83a7-d6526c2cbfcc
@@ -203,16 +197,18 @@ For the purpose of this tutorial we will use semi-synthetic data and assume the 
 
 ```math
 \begin{aligned}
-PC_{1,2} &\sim \hat{P}(PC_{1,2}) \\
-\forall i, V_i &\sim \text{Multinomial}(\hat{\mu}(PC_1, PC_2, \textbf{V}_{<i})) \\
-Y &\sim Model(\textbf{V}, PC1, PC2)
+\text{PC}_{1,2} &\sim \hat{P}_{KDE}(\text{PC}_{1,2}) \\
+\text{SEX} &\sim Bernoulli(\hat{μ}_S) \\
+\forall i, V_i &\sim \text{Multinomial}(\hat{\mu}_{V_i}(\text{PC}_1, \text{PC}_2, \textbf{V}_{<i})) \\
+Y &\sim Model(\textbf{V}, \text{PC}_1, \text{PC}_2, \text{SEX})
 \end{aligned}
 ```
 
 In words, we will:
-- Use the observed first two principal components from PCA as confounding variables.
-- Generate genetic variants by fitting a logistic regression based on those principal components. We will do this for a limited number of genetic variants.
-- Use various models to generate Y from V and PC1,2.
+- Fit a Bernoulli distribution to the sex variable.
+- Use a Kernel Density Estimator to fit the first two principal components from PCA.
+- Generate genetic variants by fitting a multinomial regression based on those principal components. We will do this for a limited number of genetic variants.
+- Use various models to generate ``Y`` from ``SEX``, ``\textbf{V}``, ``PC1`` and ``PC2``.
 
 This ensures that we know what are the true genetic effects while keeping the dataset somewhat realistic.
 
@@ -351,8 +347,8 @@ Y = \alpha \cdot V_c + \beta_1 \cdot PC_1 + \beta_2 \cdot PC_2 + \epsilon, \epsi
 where ``Vc \in \{0,1,2\}`` counts the number of ``A_1`` alleles.
 
 !!! questions "Questions"
-- What is the definition of the ``ATE_{Y, V_c}`` in this model? What assumption does it make compared to the initial definition we discussed?
-- Can you compute it exactly?
+	- What is the definition of the ``ATE_{Y, V_c}`` in this model? What assumption does it make compared to the initial definition we discussed?
+	- Can you compute it exactly?
 """
 
 # ╔═╡ c097871b-a349-4448-91ad-4c6c68786e98
@@ -373,17 +369,14 @@ function generate_linear_dataset(rng, covariates, LD_model, sex_dist;
 end
 
 # ╔═╡ b560a0d2-3349-4333-ae1b-3abae4fd6774
-begin
-	true_effect = 2
-	linear_model_dataset = generate_linear_dataset(
-		rng, covariates, LD_model,sex_dist;
-		beta_1 = 1,
-		beta_2 = - 1,
-		alpha = true_effect,
-		variant = "6:131602968:T:C_T",
-		n=10_000
-	)
-end
+linear_model_dataset = generate_linear_dataset(
+	rng, covariates, LD_model,sex_dist;
+	beta_1 = 1,
+	beta_2 = - 1,
+	alpha = 2,
+	variant = "6:131602968:T:C_T",
+	n=10_000
+)
 
 # ╔═╡ bb4d9026-1190-4f16-b690-0e4bbf1a6108
 md"""
@@ -396,8 +389,8 @@ lm(@formula(Y ~ Vc + PC1 + PC2), linear_model_dataset)
 # ╔═╡ 7c7a4c22-bced-4dff-abe5-ac58c053b620
 md"""
 !!! questions "Questions"
-- Is the ``ATE_{Y, V_c}`` correctly recovered by the estimator?
-- Does it matter whether ``PC_1`` and ``PC_2`` are adjusted for in this case? What do you conclude? 
+	- Is the ``ATE_{Y, V_c}`` correctly recovered by the estimator?
+	- Does it matter whether ``PC_1`` and ``PC_2`` are adjusted for in this case? What do you conclude? 
 """
 
 # ╔═╡ a896f42e-a697-4e68-9cc5-78297ec8e615
@@ -410,8 +403,8 @@ In general, we do not know the generating mechanism and assuming linearity can l
 Y = 2 \cdot 1[V_1\geq 1] - \sin(V_1 \cdot V_2) + 1[V_2\geq 2] \cdot S - 0.5 \cdot V_1 \cdot V_2 \cdot S + 1.5 \cdot PC_1 \cdot PC2 + \epsilon
 ```
 
-!!! questions "Questions"
-- What is the ``ATE_{Y, V_1}``? Can you compute it?
+!!! questions "Question"
+	What is the ``ATE_{Y, V_1}``? Can you compute it?
 """
 
 # ╔═╡ 2259cefb-376c-4080-a0ad-2f2bdc9bd72d
@@ -489,6 +482,29 @@ begin
 			n  = n)
 		return (ATE_0_to_1 = EY_1 - EY_0, ATE_1_to_2 = EY_2 - EY_1)
 	end
+
+	function approx_AIE_V1_V2_01_01(rng, covariates, LD_model, sex_dist;
+		V1 = "6:131602968:T:C_T",
+		V2 = "6:131610622:T:G_T",
+		n=100_000)
+		EY_00 = approx_mean(rng, covariates, LD_model, sex_dist;
+			V1 = (V1 => 0),
+			V2 = (V2 => 0),
+			n  = n)
+		EY_11 = approx_mean(rng, covariates, LD_model, sex_dist;
+			V1 = (V1 => 1),
+			V2 = (V2 => 1),
+			n  = n)
+		EY_10 = approx_mean(rng, covariates, LD_model, sex_dist;
+			V1 = (V1 => 1),
+			V2 = (V2 => 0),
+			n  = n)
+		EY_01 = approx_mean(rng, covariates, LD_model, sex_dist;
+			V1 = (V1 => 0),
+			V2 = (V2 => 1),
+			n  = n)
+		return EY_11 - EY_10 - EY_01 + EY_00
+	end
 end
 
 # ╔═╡ 3c9de2fe-7996-4bc4-8723-78996caa1e82
@@ -506,8 +522,9 @@ ATE_V1 = approx_ATE_V1(rng, covariates, LD_model, sex_dist;
 
 # ╔═╡ d36f9c8f-11e0-42fe-badb-eb4b7237ca8f
 md"""
-**Questions**
-- Rerun the linear model estimator and check whether the results are correct.
+!!! question "Questions"
+	- Rerun the linear model estimator and check whether the results are correct.
+	- Use the `coef` and `confint` functions to extract `linear_effect` and `linear_confint` respectively.
 """
 
 # ╔═╡ 6da7b36d-1e96-4d61-9c05-9ad73a7592a0
@@ -519,56 +536,117 @@ end
 
 # ╔═╡ d75a5e2c-543d-4b5a-a67c-b8db02ad772f
 md"""
-Estimators from the causal inference literature provide a more robust approach to the estimation of causal effects.
+
+#### Non-Parametric Estimators to the Rescue
+
+Estimators from the causal inference literature provide a more robust framework for the estimation of causal effects. The Targeted Maximum-Likelihood Estimator (TMLE) can leverage machine learning algorithms to fit complex generative models while yielding asymptotically unbiased and efficient point estimates under mild conditions.
+
+The method targets the quantity of interest (which takes values in ``\mathbb{R}``) by leveraging its gradient. For the ATE of ``T`` on ``Y`` confounded by ``W``, the gradient is given by:
+
+```math
+D^*(P)(O) = \left(\frac{T}{g(1, W)} - \frac{1-T}{g(0, W)}\right)\left(Y - \bar{Q}(T,W)\right) + \bar{Q}(1,W) - \bar{Q}(0,W) - \Psi(P)
+```
+
+where:
+- ``\bar{Q}(T,W) = \mathbb{E}[Y| T, W]``
+- ``g(T, W) = P(T|W)``
+
+Briefly, TMLE for the ATE proceeds in 4 steps:
+
+1. Fitting the outcome response curve ``\bar{Q}(T,W)``, we will denote this initial fit by ``\hat{\bar{Q}}^0``.
+2. Fitting the propensity score ``g(T, W)``, we will denote this initial fit by ``\hat{g}^0``.
+3. Fluctuating the initial ``\hat{Q}^0`` along the gradient to obtain a targeted ``\hat{Q}^{\star}``.
+4. Evaluating the ATE at ``\hat{Q}^{\star}``.
+
+Packages have been developed to streamline this process and leverage machine-learning ecosystems. Here we will use [TMLE.jl](https://targene.github.io/TMLE.jl/stable/).
+
+The main choices to be made are thus about the machine-learning algorithms to use for both ``\bar{Q}(T,W)`` and ``g(T, W)``.
+
+We will start with a linear model (for ``\bar{Q}(T,W)``) and a multinomial classifier (for ``g(T, W)``)
+
+!!! question "Question"
+	Do you think this will work?
+"""
+
+# ╔═╡ 132adb4b-def9-48c1-a5dc-a3d452052232
+md"""
+Let's now see how to estimate the ATE with TMLE.jl.
 """
 
 # ╔═╡ 2819d2a0-95be-4c50-816c-b1a20a1d1547
 begin
+	# Lets make sure V1, V2 and SEX are understood as categorical variables
+	nonlinear_dataset.V1 = categorical(nonlinear_dataset.V1)
+	nonlinear_dataset.V2 = categorical(nonlinear_dataset.V2)
+	nonlinear_dataset.SEX = categorical(nonlinear_dataset.SEX)
+	# Let's define a TMLE
 	models = default_models(
-		V1=MultinomialClassifier(), 
-		Q_continuous=LinearRegressor()
+		G = MultinomialClassifier(), 
+		Q_continuous = LinearRegressor()
 	)
 	tmle = Tmle(models=models)
+	# Define the quantity of interest
 	ATE_0_to_1 = ATE(
 		outcome=:Y, 
 		treatment_values=(V1=(case=1, control=0),),
 		treatment_confounders=(:PC1, :PC2, :V2),
 		outcome_extra_covariates=(:SEX,)
 	)
-	ATE_1_to_2 = ATE(
-		outcome=:Y, 
-		treatment_values=(V1=(case=2, control=1),),
-		treatment_confounders=(:PC1, :PC2, :V2),
-		outcome_extra_covariates=(:SEX,)
-	)
-	nonlinear_dataset.V1 = categorical(nonlinear_dataset.V1)
-	nonlinear_dataset.V2 = categorical(nonlinear_dataset.V2)
-	tmle_ATE_0_to_1, _ = tmle(ATE_0_to_1, nonlinear_dataset)
-	tmle_ATE_1_to_2, _ = tmle(ATE_1_to_2, nonlinear_dataset)
-	
+	# Estimate it on the datset
+	tmle_ATE_0_to_1, _ = tmle(ATE_0_to_1, nonlinear_dataset, verbosity=0)
+	# We extract the point estimate and confidence interval for plotting
 	tmle_ATE_0_to_1_effect = estimate(tmle_ATE_0_to_1)
 	tmle_ATE_0_to_1_confint = confint(significance_test(tmle_ATE_0_to_1))
-
-	tmle_ATE_1_to_2_effect = estimate(tmle_ATE_1_to_2)
-	tmle_ATE_1_to_2_confint = confint(significance_test(tmle_ATE_1_to_2))
 	
-	tmle_ATE_0_to_1, tmle_ATE_1_to_2
+	tmle_ATE_0_to_1
+end
+
+# ╔═╡ 13663c42-1ac9-4c9c-8ccf-50b8e4220573
+md"""
+!!! question "Questions"
+	Create new notebook cells to:
+	1. Estimate the ATE(T: 1 → 2), extract the point estimate and add it to the following plot.
+	2. Use the `Stack` or Super-Learner in the TMLE to fit either ``\bar{Q}(T,W)``, ``g(T, W)`` or both.
+"""
+
+# ╔═╡ 64743cdc-c852-4bcc-a8a5-c5186f65732d
+# Here for Question 1.
+
+# ╔═╡ c1609d9f-76b1-4f05-b2fb-4f17c3401e13
+begin
+	Q_simple_stack = Stack(
+		metalearner=LinearRegressor(), 
+		lr=LinearRegressor(),
+		et=EvoTreeRegressor()
+	)
+	# Here for Question 2.
 end
 
 # ╔═╡ e8f0b241-a285-4546-83f8-00ac7c8a08f3
 function plot_estimation_results(ATE_V1, results...)
+	n = length(results)
 	colors = distinguishable_colors(
-		length(results), 
+		n, 
 		[RGB(1,1,1), RGB(0,0,0)], 
 		dropseed=true
 	)
 	fig = Figure()
 	ax = Axis(fig[1, 1])
-	hlines!(ax, ATE_V1[1], linestyle=:dash, color=:green, label="ATE(V1: 0 → 1)")
-	hlines!(ax, ATE_V1[2], linestyle=:dash, color=:brown, label="ATE(V1: 1 → 2)")
+	xs = 0:0.1:n+1
+	scatter!(ax, xs, fill(ATE_V1[1], length(xs)), 
+		markersize=8, 
+		marker=:star5, 
+		color=:black, 
+		label="ATE(V1: 0 → 1)"
+	)
+	scatter!(ax, xs, fill(ATE_V1[2], length(xs)), 
+		markersize=8, 
+		marker=:circle, 
+		color=:black, 
+		label="ATE(V1: 1 → 2)"
+	)
 	for (result_id, result) in enumerate(results)
 		estimate, (lb, ub), label = result
-		println( lb)
 		errorbars!(ax, [result_id], [estimate], [ub - estimate],
     		color = [colors[result_id]],
     		whiskerwidth = 10
@@ -578,20 +656,59 @@ function plot_estimation_results(ATE_V1, results...)
 				 label=label
 		)
 	end
-	axislegend()
+	fig[1, 2] = axislegend(tellheight=false)
 	return fig
 end
 
 # ╔═╡ e2382625-61e2-45f7-bd54-51e53e23aab6
 plot_estimation_results(
 	ATE_V1, 
-	(linear_effect, linear_confint, "Linear Model"),
+	(linear_effect, linear_confint, "β (Linear Model)"),
 	(tmle_ATE_0_to_1_effect, tmle_ATE_0_to_1_confint, "TMLE 0 → 1"),
-	(tmle_ATE_1_to_2_effect, tmle_ATE_1_to_2_confint, "TMLE 1 → 2"),
+	# Add more here
 )
 
-# ╔═╡ 3560a16c-2537-4428-9b55-a5404346cdf4
-significance_test(tmle_ATE_0_to_1)
+# ╔═╡ 561d6e0c-b272-42d1-ba24-26cbf0e4b217
+md"""
+#### Interactions
+
+We have seen how to estimate the ATE, but can we estimate other quantities of interest? As long as we can define it non-parametrically and derive its gradient, yes! 
+
+In particular, additive higher-order interactions were defined [here](https://journals.aps.org/pre/abstract/10.1103/PhysRevE.102.053314) and their gradient and targeted estimator applied to population genetics was evaluated [here](https://academic.oup.com/biostatistics/article/26/1/kxaf030/8268272).
+
+An order 2 additive interaction is defined as:
+
+```math
+AIE = \mathbb{E}\bigl[\mathbb{E}[Y|V1=1, V2=1, W] - \mathbb{E}[Y|V1=0, V2=1, W] - \mathbb{E}[Y|V1=1, V2=0, W]+ \mathbb{E}[Y|V1=0, V2=0, W]\bigr]
+```
+
+It is thus an linear combination of the usual counterfactual mean. In TMLE.jl all you need to do is to define the interaction of interest.
+"""
+
+# ╔═╡ 5d200017-6b70-4c26-9910-fafde19f95d0
+begin
+	AIE_01_01 = AIE(
+		outcome=:Y,
+		treatment_values=(V1=(case=1, control=0), V2=(case=1, control=0)),
+		treatment_confounders=(:PC1, :PC2),
+		outcome_extra_covariates=(:SEX,)
+	)
+	AIE_01_01_tmle, _ = tmle(AIE_01_01, nonlinear_dataset, verbosity=0)
+	AIE_01_01_tmle
+end
+
+# ╔═╡ ea3e79ff-25db-416c-8d46-59cdc01a806d
+md"""
+!!! question "Questions"
+	1. But is this correct? Can you check it?
+	2. What about other treatment levels?
+"""
+
+# ╔═╡ e50847e1-fc78-49fd-a8ee-3494f17f3648
+# Here for Question 1
+
+# ╔═╡ 2ad0ca85-538d-4488-926c-b87a56b6629b
+# Here for Questions 2
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -2954,12 +3071,11 @@ version = "4.1.0+0"
 """
 
 # ╔═╡ Cell order:
-# ╟─32fd4709-5ac0-4143-8eb3-e663577fd62f
-# ╠═91689954-fed3-4380-8d15-16c3954a5b46
-# ╠═c6aeb8e6-ff54-4874-a507-fb94d19179d0
-# ╠═d0b2e225-292e-4b8b-b91c-743a6c72ab90
-# ╠═2995e9b6-bbe6-4560-9256-77cc5dd735ea
-# ╠═76d61a27-968c-4436-89d4-96b48c16be05
+# ╟─91689954-fed3-4380-8d15-16c3954a5b46
+# ╟─c6aeb8e6-ff54-4874-a507-fb94d19179d0
+# ╟─d0b2e225-292e-4b8b-b91c-743a6c72ab90
+# ╟─2995e9b6-bbe6-4560-9256-77cc5dd735ea
+# ╟─76d61a27-968c-4436-89d4-96b48c16be05
 # ╟─7289158a-4d08-476a-97d7-907940ef5b91
 # ╟─045e7bb8-f4eb-4bac-9b1c-30687b2d77f8
 # ╟─1a9d5e24-fd74-4e38-ba1e-de5bb510d335
@@ -2985,15 +3101,23 @@ version = "4.1.0+0"
 # ╟─a896f42e-a697-4e68-9cc5-78297ec8e615
 # ╟─2259cefb-376c-4080-a0ad-2f2bdc9bd72d
 # ╠═46ca023e-7e33-47f2-927d-112a6659c708
-# ╟─f8520f83-8368-4768-9d06-aa3b4802dec0
+# ╠═f8520f83-8368-4768-9d06-aa3b4802dec0
 # ╠═3c9de2fe-7996-4bc4-8723-78996caa1e82
 # ╠═1543ea00-dec6-4531-8bdc-ca3a4cbe6440
 # ╟─d36f9c8f-11e0-42fe-badb-eb4b7237ca8f
 # ╠═6da7b36d-1e96-4d61-9c05-9ad73a7592a0
-# ╠═d75a5e2c-543d-4b5a-a67c-b8db02ad772f
+# ╟─d75a5e2c-543d-4b5a-a67c-b8db02ad772f
+# ╟─132adb4b-def9-48c1-a5dc-a3d452052232
 # ╠═2819d2a0-95be-4c50-816c-b1a20a1d1547
-# ╠═e8f0b241-a285-4546-83f8-00ac7c8a08f3
+# ╟─13663c42-1ac9-4c9c-8ccf-50b8e4220573
+# ╠═64743cdc-c852-4bcc-a8a5-c5186f65732d
+# ╠═c1609d9f-76b1-4f05-b2fb-4f17c3401e13
+# ╟─e8f0b241-a285-4546-83f8-00ac7c8a08f3
 # ╠═e2382625-61e2-45f7-bd54-51e53e23aab6
-# ╠═3560a16c-2537-4428-9b55-a5404346cdf4
+# ╟─561d6e0c-b272-42d1-ba24-26cbf0e4b217
+# ╠═5d200017-6b70-4c26-9910-fafde19f95d0
+# ╟─ea3e79ff-25db-416c-8d46-59cdc01a806d
+# ╠═e50847e1-fc78-49fd-a8ee-3494f17f3648
+# ╠═2ad0ca85-538d-4488-926c-b87a56b6629b
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
