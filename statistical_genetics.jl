@@ -22,6 +22,7 @@ begin
 	using MLJTransforms
 	using EvoTrees
 	using KernelDensity
+	using Colors
 end
 
 # ╔═╡ 32fd4709-5ac0-4143-8eb3-e663577fd62f
@@ -121,7 +122,7 @@ At `chr1:84783937`, Alice has inherited an **A** nucleotide from her mom and a *
 !!! note
 	We will ignore the fact that the ordered "haplotype" **AG/CC** is a more accurate representation of Alice's DNA and will only consider the unordered "genotype" **A/C, G/C**.
 
-**Questions**
+!!! question "Questions"
 
 - What is a potential definition for the average treatment effect (ATE) of variant ``V`` with alleles **A** and **T** on a human trait ``Y``?
 """
@@ -259,11 +260,9 @@ end
 md"""
 ### Generating genotypes
 
-In the remainder of this practical we will focus on the genomic region located  on chromosome 6 between 131,600,000 and 131,700,000. 
+In the remainder of this practical we will focus on the genomic region located  on chromosome 6 between 131,600,000 and 131,700,000.
+The following two functions implement the fit and sampling of the genetic model described above, you don't need to look at them now.
 """
-
-# ╔═╡ 5cc41cb9-c3aa-47c1-98f4-2685475638ca
-md"""The following two functions implement the fit and sampling of the genetic model described above, you don't need to look at them now."""
 
 # ╔═╡ b65c289d-df63-4266-b1f7-64177ba21d97
 # ╠═╡ show_logs = false
@@ -351,8 +350,7 @@ Y = \alpha \cdot V_c + \beta_1 \cdot PC_1 + \beta_2 \cdot PC_2 + \epsilon, \epsi
 
 where ``Vc \in \{0,1,2\}`` counts the number of ``A_1`` alleles.
 
-**Questions**
-
+!!! questions "Questions"
 - What is the definition of the ``ATE_{Y, V_c}`` in this model? What assumption does it make compared to the initial definition we discussed?
 - Can you compute it exactly?
 """
@@ -377,7 +375,8 @@ end
 # ╔═╡ b560a0d2-3349-4333-ae1b-3abae4fd6774
 begin
 	true_effect = 2
-	linear_model_dataset = generate_linear_dataset(rng, covariates, LD_model, sex_dist;
+	linear_model_dataset = generate_linear_dataset(
+		rng, covariates, LD_model,sex_dist;
 		beta_1 = 1,
 		beta_2 = - 1,
 		alpha = true_effect,
@@ -394,32 +393,9 @@ Let's try to use a linear model estimator to estimate the ``ATE_{Y, V_c}``
 # ╔═╡ a59c3b8f-6824-4f0e-bbd0-f4a4fa3bf013
 lm(@formula(Y ~ Vc + PC1 + PC2), linear_model_dataset)
 
-# ╔═╡ 797bad98-a6c5-4938-8021-c3bf96197ba1
-begin
-	# Probably remove this
-	B = 100
-	coefs = Matrix{Float64}(undef, B, 3)
-	Random.seed!(rng, 123)
-	for b in 1:B
-		linear_model_dataset = generate_linear_dataset(
-			rng, covariates, LD_model, sex_dist;
-			beta_1 = 1,
-			beta_2 = - 1,
-			alpha = true_effect,
-			variant = "6:131602968:T:C_T",
-			n=1_000
-		)
-		lm_all = coef(lm(@formula(Y ~ Vc + PC1 + PC2), linear_model_dataset))[2]
-		lm_pc1 = coef(lm(@formula(Y ~ Vc + PC1), linear_model_dataset))[2]
-		lm_none = coef(lm(@formula(Y ~ Vc), linear_model_dataset))[2]
-		coefs[b, :] = [lm_all, lm_pc1, lm_none]
-	end
-	mean(abs.(true_effect .- coefs), dims=1)
-end
-
 # ╔═╡ 7c7a4c22-bced-4dff-abe5-ac58c053b620
 md"""
-**Questions**
+!!! questions "Questions"
 - Is the ``ATE_{Y, V_c}`` correctly recovered by the estimator?
 - Does it matter whether ``PC_1`` and ``PC_2`` are adjusted for in this case? What do you conclude? 
 """
@@ -434,7 +410,7 @@ In general, we do not know the generating mechanism and assuming linearity can l
 Y = 2 \cdot 1[V_1\geq 1] - \sin(V_1 \cdot V_2) + 1[V_2\geq 2] \cdot S - 0.5 \cdot V_1 \cdot V_2 \cdot S + 1.5 \cdot PC_1 \cdot PC2 + \epsilon
 ```
 
-**Questions**
+!!! questions "Questions"
 - What is the ``ATE_{Y, V_1}``? Can you compute it?
 """
 
@@ -453,6 +429,8 @@ begin
 	variant_name(v::Pair) = variant_name(v[1])
 
 	nonlinear_outcome_model(V1, V2, S, PC1, PC2) = 2 .* (V1 .>= 1) .- sin.(V1 .* V2) .+ (V2 .>= 2) .*  S .- 0.5 .* V1 .* V2 .* S .+ 1.5 .* PC1 .* PC2
+
+	nonlinear_outcome_model_temp(V1, V2, S, PC1, PC2) = 2 .* (V1 .>= 1) .+ 1.5 .* PC1 .* PC2 .+ (V2 .>= 2) .*  S
 	
 	function generate_nonlinear_dataset(rng, covariates, LD_model, sex_dist;
 		V1 = "6:131602968:T:C_T",
@@ -482,40 +460,49 @@ begin
 
 	function approx_mean(rng, covariates, LD_model, sex_dist;
 		V1 = "6:131602968:T:C_T",
-		V2 = "6:131610622:T:G_T")
+		V2 = "6:131610622:T:G_T",
+		n  = 1000
+		)
 		dataset = generate_nonlinear_dataset(rng, covariates, LD_model, sex_dist;
 		V1 = V1,
-		V2 = V2
+		V2 = V2,
+		n  = n
 		)
 		return mean(dataset.Y)
 	end
 
 	function approx_ATE_V1(rng, covariates, LD_model, sex_dist;
 		V1 = "6:131602968:T:C_T",
-		V2 = "6:131610622:T:G_T")
+		V2 = "6:131610622:T:G_T",
+		n=100_000)
 		EY_0 = approx_mean(rng, covariates, LD_model, sex_dist;
-			V1 = V1 => 0,
-			V2 = V2)
+			V1 = (V1 => 0),
+			V2 = V2,
+			n  = n)
 		EY_1 = approx_mean(rng, covariates, LD_model, sex_dist;
-			V1 = V1 => 1,
-			V2 = V2)
+			V1 = (V1 => 1),
+			V2 = V2,
+			n  = n)
 		EY_2 = approx_mean(rng, covariates, LD_model, sex_dist;
-			V1 = V1 => 2,
-			V2 = V2)
-		return (ATE_0_to_1 = EY_1-EY_0, ATE_1_to_2 = EY_2-EY_1)
+			V1 = (V1 => 2),
+			V2 = V2,
+			n  = n)
+		return (ATE_0_to_1 = EY_1 - EY_0, ATE_1_to_2 = EY_2 - EY_1)
 	end
 end
 
 # ╔═╡ 3c9de2fe-7996-4bc4-8723-78996caa1e82
 nonlinear_dataset = generate_nonlinear_dataset(rng, covariates, LD_model, sex_dist;
-	V1 = "6:131602968:T:C_T",
-	V2 = "6:131610622:T:G_T"
+	V1 = V1,
+	V2 = V2,
+	n = 100_000
 	)
 
 # ╔═╡ 1543ea00-dec6-4531-8bdc-ca3a4cbe6440
 ATE_V1 = approx_ATE_V1(rng, covariates, LD_model, sex_dist;
 	V1 = V1,
-	V2 = V2)
+	V2 = V2,
+	n=100_000)
 
 # ╔═╡ d36f9c8f-11e0-42fe-badb-eb4b7237ca8f
 md"""
@@ -524,7 +511,11 @@ md"""
 """
 
 # ╔═╡ 6da7b36d-1e96-4d61-9c05-9ad73a7592a0
-# Type here
+begin
+	linear_results = lm(@formula(Y ~ V1 + V2 + PC1 + PC2 + SEX), nonlinear_dataset)
+	linear_effect = coef(linear_results)[2]
+	linear_confint = confint(linear_results)[2, :]
+end
 
 # ╔═╡ d75a5e2c-543d-4b5a-a67c-b8db02ad772f
 md"""
@@ -535,25 +526,72 @@ Estimators from the causal inference literature provide a more robust approach t
 begin
 	models = default_models(
 		V1=MultinomialClassifier(), 
-		Q_continuous=EvoTreeRegressor()
+		Q_continuous=LinearRegressor()
 	)
 	tmle = Tmle(models=models)
 	ATE_0_to_1 = ATE(
 		outcome=:Y, 
 		treatment_values=(V1=(case=1, control=0),),
-		treatment_confounders=(:PC1, :PC2),
+		treatment_confounders=(:PC1, :PC2, :V2),
 		outcome_extra_covariates=(:SEX,)
 	)
 	ATE_1_to_2 = ATE(
 		outcome=:Y, 
 		treatment_values=(V1=(case=2, control=1),),
-		treatment_confounders=(:PC1, :PC2),
+		treatment_confounders=(:PC1, :PC2, :V2),
 		outcome_extra_covariates=(:SEX,)
 	)
+	nonlinear_dataset.V1 = categorical(nonlinear_dataset.V1)
+	nonlinear_dataset.V2 = categorical(nonlinear_dataset.V2)
 	tmle_ATE_0_to_1, _ = tmle(ATE_0_to_1, nonlinear_dataset)
 	tmle_ATE_1_to_2, _ = tmle(ATE_1_to_2, nonlinear_dataset)
+	
+	tmle_ATE_0_to_1_effect = estimate(tmle_ATE_0_to_1)
+	tmle_ATE_0_to_1_confint = confint(significance_test(tmle_ATE_0_to_1))
+
+	tmle_ATE_1_to_2_effect = estimate(tmle_ATE_1_to_2)
+	tmle_ATE_1_to_2_confint = confint(significance_test(tmle_ATE_1_to_2))
+	
 	tmle_ATE_0_to_1, tmle_ATE_1_to_2
 end
+
+# ╔═╡ e8f0b241-a285-4546-83f8-00ac7c8a08f3
+function plot_estimation_results(ATE_V1, results...)
+	colors = distinguishable_colors(
+		length(results), 
+		[RGB(1,1,1), RGB(0,0,0)], 
+		dropseed=true
+	)
+	fig = Figure()
+	ax = Axis(fig[1, 1])
+	hlines!(ax, ATE_V1[1], linestyle=:dash, color=:green, label="ATE(V1: 0 → 1)")
+	hlines!(ax, ATE_V1[2], linestyle=:dash, color=:brown, label="ATE(V1: 1 → 2)")
+	for (result_id, result) in enumerate(results)
+		estimate, (lb, ub), label = result
+		println( lb)
+		errorbars!(ax, [result_id], [estimate], [ub - estimate],
+    		color = [colors[result_id]],
+    		whiskerwidth = 10
+		)
+		scatter!(ax, result_id, estimate, 
+				 color=colors[result_id], 
+				 label=label
+		)
+	end
+	axislegend()
+	return fig
+end
+
+# ╔═╡ e2382625-61e2-45f7-bd54-51e53e23aab6
+plot_estimation_results(
+	ATE_V1, 
+	(linear_effect, linear_confint, "Linear Model"),
+	(tmle_ATE_0_to_1_effect, tmle_ATE_0_to_1_confint, "TMLE 0 → 1"),
+	(tmle_ATE_1_to_2_effect, tmle_ATE_1_to_2_confint, "TMLE 1 → 2"),
+)
+
+# ╔═╡ 3560a16c-2537-4428-9b55-a5404346cdf4
+significance_test(tmle_ATE_0_to_1)
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -561,6 +599,7 @@ PLUTO_PROJECT_TOML_CONTENTS = """
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 CategoricalArrays = "324d7699-5711-5eae-9e2f-1d82baa6b597"
+Colors = "5ae59095-9a9b-59fe-a467-6f913c188581"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
@@ -579,6 +618,7 @@ TMLE = "8afdd2fb-6e73-43df-8b62-b1650cd9c8cf"
 CSV = "~0.10.16"
 CairoMakie = "~0.15.13"
 CategoricalArrays = "~0.10.9"
+Colors = "~0.13.1"
 DataFrames = "~1.8.2"
 Distributions = "~0.25.130"
 EvoTrees = "~0.18.1"
@@ -598,7 +638,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.12.6"
 manifest_format = "2.0"
-project_hash = "fa406855ec5820a4aeb1294c84c3b24c96c0ea99"
+project_hash = "ad4afe8767f9beb6a0706bb8ad2b4794caa15dc8"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "9b38b82a9fe131f3d331a53b7203d9d1a2a4602c"
@@ -2932,27 +2972,28 @@ version = "4.1.0+0"
 # ╟─768a7b01-3392-457c-afd3-b49ec3ff0007
 # ╟─4c3eb4e9-4e80-4581-8570-fed7f6ad58fa
 # ╟─d9ae30d4-396c-4688-89bd-17910d042253
-# ╠═db080d57-3e4e-405c-9a3e-e71ddf4273f6
-# ╟─5cc41cb9-c3aa-47c1-98f4-2685475638ca
-# ╠═b65c289d-df63-4266-b1f7-64177ba21d97
+# ╟─db080d57-3e4e-405c-9a3e-e71ddf4273f6
+# ╟─b65c289d-df63-4266-b1f7-64177ba21d97
 # ╟─7b4cb75b-86cf-43c8-b32a-159feb95e59f
-# ╠═0247c1ff-4c87-48bd-bb65-18be49d55130
+# ╟─0247c1ff-4c87-48bd-bb65-18be49d55130
 # ╟─f7ea1ca0-fe62-41c1-9eb5-e35e6842f69c
 # ╟─c097871b-a349-4448-91ad-4c6c68786e98
 # ╠═b560a0d2-3349-4333-ae1b-3abae4fd6774
 # ╟─bb4d9026-1190-4f16-b690-0e4bbf1a6108
 # ╠═a59c3b8f-6824-4f0e-bbd0-f4a4fa3bf013
-# ╠═797bad98-a6c5-4938-8021-c3bf96197ba1
 # ╟─7c7a4c22-bced-4dff-abe5-ac58c053b620
 # ╟─a896f42e-a697-4e68-9cc5-78297ec8e615
 # ╟─2259cefb-376c-4080-a0ad-2f2bdc9bd72d
 # ╠═46ca023e-7e33-47f2-927d-112a6659c708
-# ╠═f8520f83-8368-4768-9d06-aa3b4802dec0
+# ╟─f8520f83-8368-4768-9d06-aa3b4802dec0
 # ╠═3c9de2fe-7996-4bc4-8723-78996caa1e82
 # ╠═1543ea00-dec6-4531-8bdc-ca3a4cbe6440
 # ╟─d36f9c8f-11e0-42fe-badb-eb4b7237ca8f
 # ╠═6da7b36d-1e96-4d61-9c05-9ad73a7592a0
 # ╠═d75a5e2c-543d-4b5a-a67c-b8db02ad772f
 # ╠═2819d2a0-95be-4c50-816c-b1a20a1d1547
+# ╠═e8f0b241-a285-4546-83f8-00ac7c8a08f3
+# ╠═e2382625-61e2-45f7-bd54-51e53e23aab6
+# ╠═3560a16c-2537-4428-9b55-a5404346cdf4
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
