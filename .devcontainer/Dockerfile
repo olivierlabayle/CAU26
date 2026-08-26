@@ -30,9 +30,11 @@ ENV JULIAUP_DEPOT_PATH="/opt/julia/depot"
 
 ENV JULIA_DEPOT_PATH="/opt/julia/depot"
 
+ENV PATH="/opt/julia/bin:$PATH"
+
 RUN curl -fsSL https://install.julialang.org | sh -s -- --yes --default-channel 1.12 --path /opt/julia
 
-RUN /opt/julia/bin/julia -e 'using Pkg; Pkg.add("Revise")' && \
+RUN julia -e 'using Pkg; Pkg.add("Revise")' && \
     mkdir -p "$JULIA_DEPOT_PATH/config" && \
     cat > "$JULIA_DEPOT_PATH/config/startup.jl" <<'EOF'
 try
@@ -43,6 +45,8 @@ EOF
 
 FROM dev AS prod
 
-ENTRYPOINT ["cau26"]
+WORKDIR /workspaces/CAU26
 
-CMD ["--help"]
+RUN julia --project=. -e 'using Pkg; Pkg.instantiate()'
+
+RUN julia --project=. create_sysimage.jl
