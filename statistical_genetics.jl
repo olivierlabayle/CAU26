@@ -20,6 +20,8 @@ begin
 	using MLJBase
 	using CategoricalArrays
 	using MLJTransforms
+	using EvoTrees
+	using KernelDensity
 end
 
 # ╔═╡ 32fd4709-5ac0-4143-8eb3-e663577fd62f
@@ -49,6 +51,43 @@ function plotLD(correlations)
 	hm = heatmap!(ax, 1:n, 1:n, correlations)
 	Colorbar(fig[:, end+1], hm)
 	return fig, correlations
+end
+
+# ╔═╡ 76d61a27-968c-4436-89d4-96b48c16be05
+begin
+	rng = Xoshiro(123)
+	ancestry_file=joinpath("kgp", "integrated_call_samples_v3.20130502.ALL.panel")
+	pcs_file=joinpath("kgp", "KGP_merged_pca.eigenvec")
+	genotypes_prefix = joinpath("kgp", "KGP_merged.pruned")
+	# Covariates
+	pcs = CSV.read(pcs_file, DataFrame)
+	ancestries = CSV.read(ancestry_file, DataFrame; 
+		delim="\t", 
+		header=["IID", "POP", "SUPERPOP", "GENDER"], 
+		skipto=2
+	)
+	covariates = innerjoin(
+		ancestries,
+		pcs,
+		on=["IID" => "#IID"]
+	)
+	covariates.SEX = [g == "female" ? 1 : 0 for g in covariates.GENDER]
+end;
+
+# ╔═╡ 2995e9b6-bbe6-4560-9256-77cc5dd735ea
+function plotLD(;chr=1, bp_start=100_000_000, window=2_000_000)
+    bp_end   = bp_start + window
+	tmpdir   = mktempdir()
+    out_prefix = joinpath(tmpdir, "$(chr)_$(bp_start)_$(bp_end)")
+	run(`plink2 --pfile $(genotypes_prefix) \
+        --r2-unphased square \
+        --chr $chr \
+        --from-bp $(bp_start) \
+        --to-bp $(bp_end) \
+        --out $(out_prefix)`)
+    correlations = readdlm(string(out_prefix, ".unphased.vcor2"))
+	rm(tmpdir, force=true, recursive=true)
+    return plotLD(correlations)
 end
 
 # ╔═╡ 7289158a-4d08-476a-97d7-907940ef5b91
@@ -110,42 +149,6 @@ Due to evolutionary constraints, mating between two individuals is not necessari
 !!! note
 	In large scale genome-wide association studies, this is typically adjusted for using some form of an "estimated ancestry" via principal component analysis or mixed-linear models. This can be thought as a form of causal representation learning.
 """
-
-# ╔═╡ 3e9172e6-0017-4f9e-8f6e-64c2d373867c
-begin
-	# Data Files
-	ancestry_file=joinpath("kgp", "integrated_call_samples_v3.20130502.ALL.panel")
-	pcs_file=joinpath("kgp", "KGP_merged_pca.eigenvec")
-	genotypes_prefix = joinpath("kgp", "KGP_merged.pruned")
-	# Covariates
-	pcs = CSV.read(pcs_file, DataFrame)
-	ancestries = CSV.read(ancestry_file, DataFrame; 
-		delim="\t", 
-		header=["IID", "POP", "SUPERPOP", "GENDER"], 
-		skipto=2
-	)
-	covariates = innerjoin(
-		ancestries,
-		pcs,
-		on=["IID" => "#IID"]
-	)
-end
-
-# ╔═╡ 2995e9b6-bbe6-4560-9256-77cc5dd735ea
-function plotLD(;chr=1, bp_start=100_000_000, window=2_000_000)
-    bp_end   = bp_start + window
-	tmpdir   = mktempdir()
-    out_prefix = joinpath(tmpdir, "$(chr)_$(bp_start)_$(bp_end)")
-	run(`plink2 --pfile $(genotypes_prefix) \
-        --r2-unphased square \
-        --chr $chr \
-        --from-bp $(bp_start) \
-        --to-bp $(bp_end) \
-        --out $(out_prefix)`)
-    correlations = readdlm(string(out_prefix, ".unphased.vcor2"))
-	rm(tmpdir, force=true, recursive=true)
-    return plotLD(correlations)
-end
 
 # ╔═╡ 6a79c8ac-bd42-4660-ab1f-24a8c74d9811
 begin
@@ -218,86 +221,109 @@ A simple graphical representation of the generative process.
 # ╔═╡ 768a7b01-3392-457c-afd3-b49ec3ff0007
 plot_digraph()
 
-# ╔═╡ db080d57-3e4e-405c-9a3e-e71ddf4273f6
-md"""In the remainder of this practical we will focus on the genomic region located  on chromosome 6 between 131,600,000 and 131,700,000. 
+# ╔═╡ 4c3eb4e9-4e80-4581-8570-fed7f6ad58fa
+	md"""
+	### Generating PCs and Sex
 
-**Questions**
+	We will use:
+	- Kernel Density Estimation to estimate and sample from PC1 and PC2
+	- A Bernoulli fit to sample from Sex
+	"""
 
-Using the `plotLD` function from above, can you zoom into this region?"""
-
-# ╔═╡ 6226345c-9f09-4d85-a4ef-5cd734ce64ec
-# ╠═╡ show_logs = false
+# ╔═╡ d9ae30d4-396c-4688-89bd-17910d042253
 begin
-	fig_LD_new, correlation_new = plotLD(chr=6, bp_start=131_600_000, window=100_000)
-	fig_LD_new
+	# PCs distribution
+	function sample_pcs(rng, covariates; n=1000)
+		h1 = KernelDensity.default_bandwidth(covariates.PC1)
+		h2 = KernelDensity.default_bandwidth(covariates.PC2)
+		idx = sample(rng, 1:length(covariates.PC1), n)
+	    noise = rand(MvNormal([0, 0], [h1^2 0; 0 h2^2]), n)
+	    sampled_pc1 = covariates.PC1[idx] .+ noise[1,:]
+		sampled_pc2 = covariates.PC2[idx] .+ noise[2,:]
+		return sampled_pc1, sampled_pc2
+	end
+	# Sex distribution
+	female_prop = sum(covariates.SEX) / nrow(covariates)
+	sex_dist = Bernoulli(female_prop)
+
+	n = 1000
+	fig_pcs_sex = Figure()
+	ax_pcs = Axis(fig_pcs_sex[1, 1], title="Sampled PCs")
+	scatter!(ax_pcs, sample_pcs(rng, covariates; n=n)...)
+	ax_sex = Axis(fig_pcs_sex[1, 2], xticks=([0, 1], ["Male", "Female"]), title="Sampled Sex")
+	hist!(ax_sex, rand(rng, sex_dist, n))
+	fig_pcs_sex
 end
+
+# ╔═╡ db080d57-3e4e-405c-9a3e-e71ddf4273f6
+md"""
+### Generating genotypes
+
+In the remainder of this practical we will focus on the genomic region located  on chromosome 6 between 131,600,000 and 131,700,000. 
+"""
 
 # ╔═╡ 5cc41cb9-c3aa-47c1-98f4-2685475638ca
 md"""The following two functions implement the fit and sampling of the genetic model described above, you don't need to look at them now."""
 
 # ╔═╡ b65c289d-df63-4266-b1f7-64177ba21d97
-function fit_genetic_model(base_pcs, genotypes_prefix; 
-	chr=6, 
-	from_bp=131600000, 
-	to_bp=131700000
-	)
-	tmpdir = mktempdir()
-	genotypes_region_prefix = joinpath(tmpdir, "genotypes")
-	run(`plink2 \
-		--pfile $genotypes_prefix \
-		--export A \
-		--out $genotypes_region_prefix \
-		--chr $chr \
-		--from-bp $from_bp \
-		--to-bp $to_bp`)
-	genotypes = CSV.read(
-		string(genotypes_region_prefix, ".raw"), 
-		DataFrame; 
-		drop=["FID", "PAT", "MAT", "SEX", "PHENOTYPE"],
-		delim="\t"
-	)
-	base_dataset = innerjoin(
-		base_pcs,
-		genotypes,
-		on="IID"
-	)
-	variants = filter(x -> x !== "IID", names(genotypes))
-	mdl =  ContinuousEncoder() |> MultinomialClassifier()
-	LD_model = []
-	for (vidx, v) in enumerate(variants)
-		v_parents = variants[1:vidx-1]
-	    X = base_dataset[!, ["PC1", "PC2", v_parents...]]
-	    y = categorical(base_dataset[!, v])
-	    mach = machine(mdl, X, y, cache=false)
-	    fit!(mach; verbosity=0)
-		push!(LD_model, v => mach)
-	end
-	return LD_model
-end
-
-# ╔═╡ fc19ba81-a2f9-4b1c-8302-7ba7033d49bc
-function sample_genotypes(rng, base_pcs, LD_model)
-	sampled_dataset = copy(base_pcs)
-	for (v, mach) in LD_model
-		sampled_dataset[!, v] = rand.(rng, MLJBase.predict(
-			mach, 
-			sampled_dataset[!, Not("IID")]
-		))
-	end
-	return sampled_dataset
-end
-
-# ╔═╡ d5526ccd-3f11-49e8-9ee1-b87d79f071e7
 # ╠═╡ show_logs = false
 begin
-	rng = Xoshiro(123) # Random seed
-	base_pcs = DataFrames.select(pcs, "#IID" => "IID", "PC1", "PC2")
-	LD_model = fit_genetic_model(base_pcs, genotypes_prefix; 
+	function fit_genetic_model(covariates, genotypes_prefix; 
 		chr=6, 
-	    from_bp=131600000, 
+		from_bp=131600000, 
+		to_bp=131700000
+		)
+		tmpdir = mktempdir()
+		genotypes_region_prefix = joinpath(tmpdir, "genotypes")
+		run(`plink2 \
+			--pfile $genotypes_prefix \
+			--export A \
+			--out $genotypes_region_prefix \
+			--chr $chr \
+			--from-bp $from_bp \
+			--to-bp $to_bp`)
+		genotypes = CSV.read(
+			string(genotypes_region_prefix, ".raw"), 
+			DataFrame; 
+			drop=["FID", "PAT", "MAT", "SEX", "PHENOTYPE"],
+			delim="\t"
+		)
+		pcs = covariates[!, ["IID", "PC1", "PC2"]]
+		training_dataset = innerjoin(
+			pcs,
+			genotypes,
+			on="IID"
+		)
+		variants = filter(x -> x !== "IID", names(genotypes))
+		mdl =  ContinuousEncoder() |> MultinomialClassifier()
+		LD_model = []
+		for (vidx, v) in enumerate(variants)
+			v_parents = variants[1:vidx-1]
+		    X = training_dataset[!, ["PC1", "PC2", v_parents...]]
+		    y = categorical(training_dataset[!, v])
+		    mach = machine(mdl, X, y, cache=false)
+		    fit!(mach; verbosity=0)
+			push!(LD_model, v => mach)
+		end
+		return LD_model
+	end
+		
+	function sample_genotypes(rng, input_dataset, LD_model)
+		sampled_dataset = input_dataset[!, ["SEX", "PC1", "PC2"]]
+		for (v, mach) in LD_model
+			sampled_dataset[!, v] = rand.(rng, MLJBase.predict(
+				mach, 
+				sampled_dataset[!, Not(["SEX"])]
+			))
+		end
+		return sampled_dataset
+	end
+
+	LD_model = fit_genetic_model(covariates, genotypes_prefix; 
+		chr=6, 
+	    from_bp=131600000,
 	    to_bp=131700000
 	)
-	sampled_dataset = sample_genotypes(rng, base_pcs, LD_model)
 end
 
 # ╔═╡ 7b4cb75b-86cf-43c8-b32a-159feb95e59f
@@ -307,7 +333,8 @@ Let's look at the LD structure of the generated variants
 
 # ╔═╡ 0247c1ff-4c87-48bd-bb65-18be49d55130
 begin
-	sampled_correlation = cor(unwrap.(Matrix(sampled_dataset[!, Not(["IID", "PC1", "PC2"])])))
+	sampled_dataset = sample_genotypes(rng, covariates, LD_model)
+	sampled_correlation = cor(unwrap.(Matrix(sampled_dataset[!, Not(["PC1", "PC2"])])))
 	fig_sc, _ = plotLD(sampled_correlation)
 	fig_sc
 end
@@ -331,25 +358,33 @@ where ``Vc \in \{0,1,2\}`` counts the number of ``A_1`` alleles.
 """
 
 # ╔═╡ c097871b-a349-4448-91ad-4c6c68786e98
-function generate_linear_dataset(rng, base_pcs, LD_model;
+function generate_linear_dataset(rng, covariates, LD_model, sex_dist;
 	beta_1 = 1,
 	beta_2 = - 1,
 	alpha = 1,
-	variant = "6:131602968:T:C_T"
+	variant = "6:131602968:T:C_T",
+	n = 1000
 	)
-	linear_model_dataset = sample_genotypes(rng, base_pcs, LD_model)
+	pc1, pc2 = sample_pcs(rng, covariates; n=n)
+	sex = rand(rng, sex_dist, n)
+	linear_model_dataset = DataFrame(SEX=sex, PC1=pc1, PC2=pc2)
+	linear_model_dataset = sample_genotypes(rng, linear_model_dataset, LD_model)
 	linear_model_dataset.Vc = unwrap.(linear_model_dataset[!, variant])
 	linear_model_dataset.Y = beta_1 .* linear_model_dataset.PC1 .+ beta_2 .* linear_model_dataset.PC2 .+ alpha .* linear_model_dataset.Vc .+ rand(rng, Normal(0, 1), nrow(linear_model_dataset))
-	return linear_model_dataset[!, ["IID", "Vc", "PC1", "PC2", "Y"]]
+	return linear_model_dataset[!, ["Vc", "PC1", "PC2", "SEX", "Y"]]
 end
 
 # ╔═╡ b560a0d2-3349-4333-ae1b-3abae4fd6774
-linear_model_dataset = generate_linear_dataset(rng, base_pcs, LD_model;
-	beta_1 = 1,
-	beta_2 = - 1,
-	alpha = 1,
-	variant = "6:131602968:T:C_T"
-)
+begin
+	true_effect = 2
+	linear_model_dataset = generate_linear_dataset(rng, covariates, LD_model, sex_dist;
+		beta_1 = 1,
+		beta_2 = - 1,
+		alpha = true_effect,
+		variant = "6:131602968:T:C_T",
+		n=10_000
+	)
+end
 
 # ╔═╡ bb4d9026-1190-4f16-b690-0e4bbf1a6108
 md"""
@@ -358,6 +393,29 @@ Let's try to use a linear model estimator to estimate the ``ATE_{Y, V_c}``
 
 # ╔═╡ a59c3b8f-6824-4f0e-bbd0-f4a4fa3bf013
 lm(@formula(Y ~ Vc + PC1 + PC2), linear_model_dataset)
+
+# ╔═╡ 797bad98-a6c5-4938-8021-c3bf96197ba1
+begin
+	# Probably remove this
+	B = 100
+	coefs = Matrix{Float64}(undef, B, 3)
+	Random.seed!(rng, 123)
+	for b in 1:B
+		linear_model_dataset = generate_linear_dataset(
+			rng, covariates, LD_model, sex_dist;
+			beta_1 = 1,
+			beta_2 = - 1,
+			alpha = true_effect,
+			variant = "6:131602968:T:C_T",
+			n=1_000
+		)
+		lm_all = coef(lm(@formula(Y ~ Vc + PC1 + PC2), linear_model_dataset))[2]
+		lm_pc1 = coef(lm(@formula(Y ~ Vc + PC1), linear_model_dataset))[2]
+		lm_none = coef(lm(@formula(Y ~ Vc), linear_model_dataset))[2]
+		coefs[b, :] = [lm_all, lm_pc1, lm_none]
+	end
+	mean(abs.(true_effect .- coefs), dims=1)
+end
 
 # ╔═╡ 7c7a4c22-bced-4dff-abe5-ac58c053b620
 md"""
@@ -368,7 +426,7 @@ md"""
 
 # ╔═╡ a896f42e-a697-4e68-9cc5-78297ec8e615
 md"""
-### Non-Linear Models
+### Non-Linear Model
 
 In general, we do not know the generating mechanism and assuming linearity can lead to incorrect inference. In this section we will demonstrate how model misspecification can lead to such conclusions and how to correct it using more robust estimators.
 
@@ -396,26 +454,21 @@ begin
 
 	nonlinear_outcome_model(V1, V2, S, PC1, PC2) = 2 .* (V1 .>= 1) .- sin.(V1 .* V2) .+ (V2 .>= 2) .*  S .- 0.5 .* V1 .* V2 .* S .+ 1.5 .* PC1 .* PC2
 	
-	function generate_nonlinear_dataset(rng, base_pcs, covariates, LD_model;
+	function generate_nonlinear_dataset(rng, covariates, LD_model, sex_dist;
 		V1 = "6:131602968:T:C_T",
-		V2 = "6:131610622:T:G_T"
+		V2 = "6:131610622:T:G_T",
+		n  = 1000
 		)
-	    dataset = sample_genotypes(rng, base_pcs, LD_model)
-		DataFrames.select!(dataset, 
-			:IID, 
+		pc1, pc2 = sample_pcs(rng, covariates; n=n)
+		sex = rand(rng, sex_dist, n)
+		dataset = DataFrame(SEX=sex, PC1=pc1, PC2=pc2)
+	    dataset = sample_genotypes(rng, dataset, LD_model)
+		DataFrames.select!(dataset,
+			:SEX,
 			:PC1, 
 			:PC2, 
 			variant_name(V1) => (x -> unwrap.(x)) => :V1, 
 			variant_name(V2) => (x -> unwrap.(x)) => :V2
-		)
-		dataset = innerjoin(
-			dataset,
-			DataFrames.select(covariates, 
-				:IID, 
-				:GENDER =>
-					ByRow(x -> x == "female" ? 1 : x == "male" ? 0 : missing) => :SEX
-			),
-			on=:IID
 		)
 		n = nrow(dataset)
 		V1_vals = V1 isa Pair ? fill(V1[2], n) : dataset.V1
@@ -427,26 +480,26 @@ begin
 		return dataset
 	end
 
-	function approx_mean(rng, base_pcs, covariates, LD_model;
+	function approx_mean(rng, covariates, LD_model, sex_dist;
 		V1 = "6:131602968:T:C_T",
 		V2 = "6:131610622:T:G_T")
-		dataset = generate_nonlinear_dataset(rng, base_pcs, covariates, LD_model;
+		dataset = generate_nonlinear_dataset(rng, covariates, LD_model, sex_dist;
 		V1 = V1,
 		V2 = V2
 		)
 		return mean(dataset.Y)
 	end
 
-	function approx_ATE_V1(rng, base_pcs, covariates, LD_model;
+	function approx_ATE_V1(rng, covariates, LD_model, sex_dist;
 		V1 = "6:131602968:T:C_T",
 		V2 = "6:131610622:T:G_T")
-		EY_0 = approx_mean(rng, base_pcs, covariates, LD_model;
+		EY_0 = approx_mean(rng, covariates, LD_model, sex_dist;
 			V1 = V1 => 0,
 			V2 = V2)
-		EY_1 = approx_mean(rng, base_pcs, covariates, LD_model;
+		EY_1 = approx_mean(rng, covariates, LD_model, sex_dist;
 			V1 = V1 => 1,
 			V2 = V2)
-		EY_2 = approx_mean(rng, base_pcs, covariates, LD_model;
+		EY_2 = approx_mean(rng, covariates, LD_model, sex_dist;
 			V1 = V1 => 2,
 			V2 = V2)
 		return (ATE_0_to_1 = EY_1-EY_0, ATE_1_to_2 = EY_2-EY_1)
@@ -454,13 +507,13 @@ begin
 end
 
 # ╔═╡ 3c9de2fe-7996-4bc4-8723-78996caa1e82
-nonlinear_dataset = generate_nonlinear_dataset(rng, base_pcs, covariates, LD_model;
+nonlinear_dataset = generate_nonlinear_dataset(rng, covariates, LD_model, sex_dist;
 	V1 = "6:131602968:T:C_T",
 	V2 = "6:131610622:T:G_T"
 	)
 
 # ╔═╡ 1543ea00-dec6-4531-8bdc-ca3a4cbe6440
-ATE_V1 = approx_ATE_V1(rng, base_pcs, covariates, LD_model;
+ATE_V1 = approx_ATE_V1(rng, covariates, LD_model, sex_dist;
 	V1 = V1,
 	V2 = V2)
 
@@ -479,7 +532,28 @@ Estimators from the causal inference literature provide a more robust approach t
 """
 
 # ╔═╡ 2819d2a0-95be-4c50-816c-b1a20a1d1547
-tmle = TMLE()
+begin
+	models = default_models(
+		V1=MultinomialClassifier(), 
+		Q_continuous=EvoTreeRegressor()
+	)
+	tmle = Tmle(models=models)
+	ATE_0_to_1 = ATE(
+		outcome=:Y, 
+		treatment_values=(V1=(case=1, control=0),),
+		treatment_confounders=(:PC1, :PC2),
+		outcome_extra_covariates=(:SEX,)
+	)
+	ATE_1_to_2 = ATE(
+		outcome=:Y, 
+		treatment_values=(V1=(case=2, control=1),),
+		treatment_confounders=(:PC1, :PC2),
+		outcome_extra_covariates=(:SEX,)
+	)
+	tmle_ATE_0_to_1, _ = tmle(ATE_0_to_1, nonlinear_dataset)
+	tmle_ATE_1_to_2, _ = tmle(ATE_1_to_2, nonlinear_dataset)
+	tmle_ATE_0_to_1, tmle_ATE_1_to_2
+end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -490,9 +564,11 @@ CategoricalArrays = "324d7699-5711-5eae-9e2f-1d82baa6b597"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+EvoTrees = "f6006082-12f8-11e9-0c9c-0d5d367ab1e5"
 GLM = "38e38edf-8417-5370-95a0-9cbb8c7f171a"
 GraphMakie = "1ecd5474-83a3-4783-bb4f-06765db800d2"
 Graphs = "86223c79-3864-5bf0-83f7-82e725a168b6"
+KernelDensity = "5ab0869b-81aa-558d-bb23-cbf5423bbe9b"
 MLJBase = "a7f614a8-145f-11e9-1d2a-a57a1082229d"
 MLJLinearModels = "6ee0df7b-362f-4a72-a706-9e79364fb692"
 MLJTransforms = "23777cdb-d90c-4eb0-a694-7c2b83d5c1d6"
@@ -505,9 +581,11 @@ CairoMakie = "~0.15.13"
 CategoricalArrays = "~0.10.9"
 DataFrames = "~1.8.2"
 Distributions = "~0.25.130"
+EvoTrees = "~0.18.1"
 GLM = "~1.9.5"
 GraphMakie = "~0.6.6"
 Graphs = "~1.14.0"
+KernelDensity = "~0.6.12"
 MLJBase = "~1.9.2"
 MLJLinearModels = "~0.10.2"
 MLJTransforms = "~0.1.3"
@@ -520,7 +598,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.12.6"
 manifest_format = "2.0"
-project_hash = "32f8b96b230463626f02d78f64273f9cd2c9cd6d"
+project_hash = "fa406855ec5820a4aeb1294c84c3b24c96c0ea99"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "9b38b82a9fe131f3d331a53b7203d9d1a2a4602c"
@@ -703,6 +781,11 @@ deps = ["LinearAlgebra", "Printf", "Random"]
 git-tree-sha1 = "e386db8b4753b42caac75ac81d0a4fe161a68a97"
 uuid = "ab4f0b2a-ad5b-11e8-123f-65d77653426b"
 version = "0.6.1"
+
+[[deps.BSON]]
+git-tree-sha1 = "4c3e506685c527ac6a54ccc0c8c76fd6f91b42fb"
+uuid = "fbb218c0-5317-5bc6-957e-2ee96dd4b1f0"
+version = "0.3.9"
 
 [[deps.Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
@@ -1127,6 +1210,20 @@ version = "2.2.4+0"
 git-tree-sha1 = "c49898e8438c828577f04b92fc9368c388ac783c"
 uuid = "4e289a0a-7415-4d19-859d-a7e5c4648b56"
 version = "1.0.7"
+
+[[deps.EvoTrees]]
+deps = ["BSON", "CategoricalArrays", "Distributions", "MLJModelInterface", "NetworkLayout", "Random", "RecipesBase", "Statistics", "StatsBase", "Tables"]
+git-tree-sha1 = "b31175cbed8e28a0a1a19743707fd7650d122ecc"
+uuid = "f6006082-12f8-11e9-0c9c-0d5d367ab1e5"
+version = "0.18.1"
+
+    [deps.EvoTrees.extensions]
+    EvoTreesCUDAExt = ["CUDA", "KernelAbstractions", "Atomix"]
+
+    [deps.EvoTrees.weakdeps]
+    Atomix = "a9b6321e-bd34-4604-b9c9-b65b8de01458"
+    CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+    KernelAbstractions = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
 
 [[deps.ExactPredicates]]
 deps = ["IntervalArithmetic", "Random", "StaticArrays"]
@@ -2821,36 +2918,36 @@ version = "4.1.0+0"
 # ╠═91689954-fed3-4380-8d15-16c3954a5b46
 # ╠═c6aeb8e6-ff54-4874-a507-fb94d19179d0
 # ╠═d0b2e225-292e-4b8b-b91c-743a6c72ab90
-# ╟─2995e9b6-bbe6-4560-9256-77cc5dd735ea
+# ╠═2995e9b6-bbe6-4560-9256-77cc5dd735ea
+# ╠═76d61a27-968c-4436-89d4-96b48c16be05
 # ╟─7289158a-4d08-476a-97d7-907940ef5b91
 # ╟─045e7bb8-f4eb-4bac-9b1c-30687b2d77f8
 # ╟─1a9d5e24-fd74-4e38-ba1e-de5bb510d335
 # ╠═f6436768-93d1-41c3-83a7-d6526c2cbfcc
 # ╟─824d165c-8846-489b-ad5e-87d695a6abcf
-# ╠═3e9172e6-0017-4f9e-8f6e-64c2d373867c
 # ╟─6a79c8ac-bd42-4660-ab1f-24a8c74d9811
 # ╟─f1cc35f8-373c-4b28-93b2-f7fc2d27462e
 # ╠═4413904b-ab45-4aa5-998b-1880d3b8f0ed
 # ╟─4dbb0069-82e8-4543-8908-9fb27ba2f730
 # ╟─768a7b01-3392-457c-afd3-b49ec3ff0007
-# ╟─db080d57-3e4e-405c-9a3e-e71ddf4273f6
-# ╠═6226345c-9f09-4d85-a4ef-5cd734ce64ec
+# ╟─4c3eb4e9-4e80-4581-8570-fed7f6ad58fa
+# ╟─d9ae30d4-396c-4688-89bd-17910d042253
+# ╠═db080d57-3e4e-405c-9a3e-e71ddf4273f6
 # ╟─5cc41cb9-c3aa-47c1-98f4-2685475638ca
-# ╟─b65c289d-df63-4266-b1f7-64177ba21d97
-# ╠═fc19ba81-a2f9-4b1c-8302-7ba7033d49bc
-# ╠═d5526ccd-3f11-49e8-9ee1-b87d79f071e7
+# ╠═b65c289d-df63-4266-b1f7-64177ba21d97
 # ╟─7b4cb75b-86cf-43c8-b32a-159feb95e59f
 # ╠═0247c1ff-4c87-48bd-bb65-18be49d55130
 # ╟─f7ea1ca0-fe62-41c1-9eb5-e35e6842f69c
-# ╠═c097871b-a349-4448-91ad-4c6c68786e98
+# ╟─c097871b-a349-4448-91ad-4c6c68786e98
 # ╠═b560a0d2-3349-4333-ae1b-3abae4fd6774
 # ╟─bb4d9026-1190-4f16-b690-0e4bbf1a6108
 # ╠═a59c3b8f-6824-4f0e-bbd0-f4a4fa3bf013
+# ╠═797bad98-a6c5-4938-8021-c3bf96197ba1
 # ╟─7c7a4c22-bced-4dff-abe5-ac58c053b620
-# ╠═a896f42e-a697-4e68-9cc5-78297ec8e615
+# ╟─a896f42e-a697-4e68-9cc5-78297ec8e615
 # ╟─2259cefb-376c-4080-a0ad-2f2bdc9bd72d
 # ╠═46ca023e-7e33-47f2-927d-112a6659c708
-# ╟─f8520f83-8368-4768-9d06-aa3b4802dec0
+# ╠═f8520f83-8368-4768-9d06-aa3b4802dec0
 # ╠═3c9de2fe-7996-4bc4-8723-78996caa1e82
 # ╠═1543ea00-dec6-4531-8bdc-ca3a4cbe6440
 # ╟─d36f9c8f-11e0-42fe-badb-eb4b7237ca8f
