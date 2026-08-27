@@ -54,7 +54,7 @@ begin
 	rng = Xoshiro(123)
 	ancestry_file=joinpath("kgp", "integrated_call_samples_v3.20130502.ALL.panel")
 	pcs_file=joinpath("kgp", "KGP_merged_pca.eigenvec")
-	genotypes_prefix = joinpath("kgp", "KGP_merged.pruned")
+	genotypes_prefix = joinpath("kgp", "KGP_merged")
 	# Covariates
 	pcs = CSV.read(pcs_file, DataFrame)
 	ancestries = CSV.read(ancestry_file, DataFrame; 
@@ -183,7 +183,8 @@ We are now ready to dive in!
 # ╔═╡ 4413904b-ab45-4aa5-998b-1880d3b8f0ed
 # ╠═╡ show_logs = false
 begin
-	fig_LD, correlation = plotLD(chr=6, bp_start=130_000_000, window=2_000_000)
+	# 135_000_000 - 10_000
+	fig_LD, correlation = plotLD(chr=6, bp_start=120_000_000, window=1_500)
 	fig_LD
 end
 
@@ -316,8 +317,8 @@ begin
 
 	LD_model = fit_genetic_model(covariates, genotypes_prefix; 
 		chr=6, 
-	    from_bp=131600000,
-	    to_bp=131700000
+	    from_bp=120_000_000,
+	    to_bp=120_001_500
 	)
 end
 
@@ -333,6 +334,18 @@ begin
 	fig_sc, _ = plotLD(sampled_correlation)
 	fig_sc
 end
+
+# ╔═╡ 8f86a930-b1dc-48d2-871d-673c5adeee75
+sampled_dataset
+
+# ╔═╡ ca130a71-d1d8-46d1-be00-c31ba8da1762
+levels(sampled_dataset[!, "6:120000928:G:A_G"])
+
+# ╔═╡ 6f115c1c-530b-421d-ad6c-9c7a6d4667e5
+levels(sampled_dataset[!, "6:120000088:G:A_G"])
+
+# ╔═╡ 460f9d81-f85b-4427-bade-7573ac0e1322
+cor(unwrap.(sampled_dataset[!, "6:120000928:G:A_G"]), unwrap.(sampled_dataset[!, "6:120000088:G:A_G"]))
 
 # ╔═╡ f7ea1ca0-fe62-41c1-9eb5-e35e6842f69c
 md"""
@@ -374,7 +387,7 @@ linear_model_dataset = generate_linear_dataset(
 	beta_1 = 1,
 	beta_2 = - 1,
 	alpha = 2,
-	variant = "6:131602968:T:C_T",
+	variant = "6:120000928:G:A_G",
 	n=10_000
 )
 
@@ -412,8 +425,9 @@ md"""We will use these two variants as an example"""
 
 # ╔═╡ 46ca023e-7e33-47f2-927d-112a6659c708
 begin
-    V1 = "6:131602968:T:C_T"
-    V2 = "6:131610622:T:G_T"
+    V1 = "6:120000928:G:A_G"
+    #V2 = "6:120001440:G:A_G"
+    V2 = "6:120000088:G:A_G"
 end;
 
 # ╔═╡ f8520f83-8368-4768-9d06-aa3b4802dec0
@@ -518,7 +532,7 @@ nonlinear_dataset = generate_nonlinear_dataset(rng, covariates, LD_model, sex_di
 ATE_V1 = approx_ATE_V1(rng, covariates, LD_model, sex_dist;
 	V1 = V1,
 	V2 = V2,
-	n=100_000)
+	n=500_000)
 
 # ╔═╡ d36f9c8f-11e0-42fe-badb-eb4b7237ca8f
 md"""
@@ -610,16 +624,53 @@ md"""
 """
 
 # ╔═╡ 64743cdc-c852-4bcc-a8a5-c5186f65732d
-# Here for Question 1.
+begin
+	# Here for Question 1.
+	ATE_1_to_2 = ATE(
+		outcome=:Y, 
+		treatment_values=(V1=(case=2, control=1),),
+		treatment_confounders=(:PC1, :PC2, :V2),
+		outcome_extra_covariates=(:SEX,)
+	)
+	# Estimate it on the datset
+	tmle_ATE_1_to_2, _ = tmle(ATE_1_to_2, nonlinear_dataset, verbosity=0)
+	# We extract the point estimate and confidence interval for plotting
+	tmle_ATE_1_to_2_effect = estimate(tmle_ATE_1_to_2)
+	tmle_ATE_1_to_2_confint = confint(significance_test(tmle_ATE_1_to_2))
+	
+	tmle_ATE_1_to_2
+end
 
 # ╔═╡ c1609d9f-76b1-4f05-b2fb-4f17c3401e13
 begin
 	Q_simple_stack = Stack(
 		metalearner=LinearRegressor(), 
-		lr=LinearRegressor(),
-		et=EvoTreeRegressor()
+		lr0=RidgeRegressor(lambda=0),
+		lr01=RidgeRegressor(lambda=0.1),
+		lr001=RidgeRegressor(lambda=0.01),
+		et6=EvoTreeRegressor(max_depth=6),
+		et3=EvoTreeRegressor(max_depth=3),
+	)
+	G_stack = Stack(
+		metalearner=MultinomialClassifier(), 
+		lr0=MultinomialClassifier(lambda=0),
+		lr01=MultinomialClassifier(lambda=0.1),
+		lr001=MultinomialClassifier(lambda=0.01),
+		et6=EvoTreeClassifier(max_depth=6),
+		et3=EvoTreeClassifier(max_depth=3)
 	)
 	# Here for Question 2.
+	models_stack = default_models(
+		G = G_stack, 
+		Q_continuous = Q_simple_stack
+	)
+	tmle_stack = Tmle(models=models_stack)
+	tmle_stack_ATE_0_to_1, _ = tmle_stack(ATE_0_to_1, nonlinear_dataset, verbosity=0)
+	# We extract the point estimate and confidence interval for plotting
+	tmle_stack_ATE_0_to_1_effect = estimate(tmle_stack_ATE_0_to_1)
+	tmle_stack_ATE_0_to_1_confint = confint(significance_test(tmle_stack_ATE_0_to_1))
+
+	tmle_stack_ATE_0_to_1
 end
 
 # ╔═╡ e8f0b241-a285-4546-83f8-00ac7c8a08f3
@@ -665,8 +716,14 @@ plot_estimation_results(
 	ATE_V1, 
 	(linear_effect, linear_confint, "β (Linear Model)"),
 	(tmle_ATE_0_to_1_effect, tmle_ATE_0_to_1_confint, "TMLE 0 → 1"),
+	(tmle_stack_ATE_0_to_1_effect, tmle_stack_ATE_0_to_1_confint, "TMLE Stack 0 → 1"),
+	(tmle_ATE_1_to_2_effect, tmle_ATE_1_to_2_confint, "TMLE 1 → 2"),
+	
 	# Add more here
 )
+
+# ╔═╡ 68574671-1558-46ba-9b5e-e10553e52398
+combine(groupby(nonlinear_dataset, [:V1, :V2]), nrow, proprow)
 
 # ╔═╡ 561d6e0c-b272-42d1-ba24-26cbf0e4b217
 md"""
@@ -693,7 +750,7 @@ begin
 		treatment_confounders=(:PC1, :PC2),
 		outcome_extra_covariates=(:SEX,)
 	)
-	AIE_01_01_tmle, _ = tmle(AIE_01_01, nonlinear_dataset, verbosity=0)
+	AIE_01_01_tmle, _ = tmle_stack(AIE_01_01, nonlinear_dataset, verbosity=0)
 	AIE_01_01_tmle
 end
 
@@ -706,6 +763,10 @@ md"""
 
 # ╔═╡ e50847e1-fc78-49fd-a8ee-3494f17f3648
 # Here for Question 1
+approx_AIE_V1_V2_01_01(rng, covariates, LD_model, sex_dist;
+		V1 = V1,
+		V2 = V2,
+		n=100_000)
 
 # ╔═╡ 2ad0ca85-538d-4488-926c-b87a56b6629b
 # Here for Questions 2
@@ -3071,11 +3132,11 @@ version = "4.1.0+0"
 """
 
 # ╔═╡ Cell order:
-# ╠═91689954-fed3-4380-8d15-16c3954a5b46
+# ╟─91689954-fed3-4380-8d15-16c3954a5b46
 # ╟─c6aeb8e6-ff54-4874-a507-fb94d19179d0
 # ╟─d0b2e225-292e-4b8b-b91c-743a6c72ab90
 # ╟─2995e9b6-bbe6-4560-9256-77cc5dd735ea
-# ╟─76d61a27-968c-4436-89d4-96b48c16be05
+# ╠═76d61a27-968c-4436-89d4-96b48c16be05
 # ╟─7289158a-4d08-476a-97d7-907940ef5b91
 # ╟─045e7bb8-f4eb-4bac-9b1c-30687b2d77f8
 # ╟─1a9d5e24-fd74-4e38-ba1e-de5bb510d335
@@ -3090,8 +3151,12 @@ version = "4.1.0+0"
 # ╟─d9ae30d4-396c-4688-89bd-17910d042253
 # ╟─db080d57-3e4e-405c-9a3e-e71ddf4273f6
 # ╟─b65c289d-df63-4266-b1f7-64177ba21d97
-# ╟─7b4cb75b-86cf-43c8-b32a-159feb95e59f
-# ╟─0247c1ff-4c87-48bd-bb65-18be49d55130
+# ╠═7b4cb75b-86cf-43c8-b32a-159feb95e59f
+# ╠═0247c1ff-4c87-48bd-bb65-18be49d55130
+# ╠═8f86a930-b1dc-48d2-871d-673c5adeee75
+# ╠═ca130a71-d1d8-46d1-be00-c31ba8da1762
+# ╠═6f115c1c-530b-421d-ad6c-9c7a6d4667e5
+# ╠═460f9d81-f85b-4427-bade-7573ac0e1322
 # ╟─f7ea1ca0-fe62-41c1-9eb5-e35e6842f69c
 # ╟─c097871b-a349-4448-91ad-4c6c68786e98
 # ╠═b560a0d2-3349-4333-ae1b-3abae4fd6774
@@ -3114,6 +3179,7 @@ version = "4.1.0+0"
 # ╠═c1609d9f-76b1-4f05-b2fb-4f17c3401e13
 # ╟─e8f0b241-a285-4546-83f8-00ac7c8a08f3
 # ╠═e2382625-61e2-45f7-bd54-51e53e23aab6
+# ╠═68574671-1558-46ba-9b5e-e10553e52398
 # ╟─561d6e0c-b272-42d1-ba24-26cbf0e4b217
 # ╠═5d200017-6b70-4c26-9910-fafde19f95d0
 # ╟─ea3e79ff-25db-416c-8d46-59cdc01a806d
