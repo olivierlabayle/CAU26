@@ -183,8 +183,7 @@ We are now ready to dive in!
 # ╔═╡ 4413904b-ab45-4aa5-998b-1880d3b8f0ed
 # ╠═╡ show_logs = false
 begin
-	# 135_000_000 - 10_000
-	fig_LD, correlation = plotLD(chr=6, bp_start=120_000_000, window=1_500)
+	fig_LD, correlation = plotLD(chr=6, bp_start=135_000_000, window=10_000)
 	fig_LD
 end
 
@@ -235,7 +234,7 @@ begin
 		h1 = KernelDensity.default_bandwidth(covariates.PC1)
 		h2 = KernelDensity.default_bandwidth(covariates.PC2)
 		idx = sample(rng, 1:length(covariates.PC1), n)
-	    noise = rand(MvNormal([0, 0], [h1^2 0; 0 h2^2]), n)
+	    noise = rand(rng, MvNormal([0, 0], [h1^2 0; 0 h2^2]), n)
 	    sampled_pc1 = covariates.PC1[idx] .+ noise[1,:]
 		sampled_pc2 = covariates.PC2[idx] .+ noise[2,:]
 		return sampled_pc1, sampled_pc2
@@ -337,15 +336,6 @@ end
 
 # ╔═╡ 8f86a930-b1dc-48d2-871d-673c5adeee75
 sampled_dataset
-
-# ╔═╡ ca130a71-d1d8-46d1-be00-c31ba8da1762
-levels(sampled_dataset[!, "6:120000928:G:A_G"])
-
-# ╔═╡ 6f115c1c-530b-421d-ad6c-9c7a6d4667e5
-levels(sampled_dataset[!, "6:120000088:G:A_G"])
-
-# ╔═╡ 460f9d81-f85b-4427-bade-7573ac0e1322
-cor(unwrap.(sampled_dataset[!, "6:120000928:G:A_G"]), unwrap.(sampled_dataset[!, "6:120000088:G:A_G"]))
 
 # ╔═╡ f7ea1ca0-fe62-41c1-9eb5-e35e6842f69c
 md"""
@@ -462,7 +452,7 @@ begin
 		PC1_vals = dataset.PC1
 		PC2_vals = dataset.PC2
 		dataset.Y = nonlinear_outcome_model(V1_vals, V2_vals, S_vals, PC1_vals, PC2_vals) .+ rand(rng, Normal(0, 1), n)
-		return dataset
+		return dataset, approx_ground_truths(dataset)
 	end
 
 	function approx_mean(rng, covariates, LD_model, sex_dist;
@@ -497,6 +487,71 @@ begin
 		return (ATE_0_to_1 = EY_1 - EY_0, ATE_1_to_2 = EY_2 - EY_1)
 	end
 
+	function approx_ground_truths(dataset)
+		n = nrow(dataset)
+		# ATE V1
+		ct_0 = fill(0, n)
+		ct_1 = fill(1, n)
+		ct_2 = fill(2, n)
+		ATE_V1_01 = mean(nonlinear_outcome_model(
+			ct_1, 
+			dataset.V2, 
+			dataset.SEX, 
+			dataset.PC1, 
+			dataset.PC2
+			) - nonlinear_outcome_model(
+			ct_0, 
+			dataset.V2, 
+			dataset.SEX, 
+			dataset.PC1, 
+			dataset.PC2
+			))
+		ATE_V1_12 = mean(nonlinear_outcome_model(
+			ct_2, 
+			dataset.V2, 
+			dataset.SEX, 
+			dataset.PC1, 
+			dataset.PC2
+			) - nonlinear_outcome_model(
+			ct_1, 
+			dataset.V2, 
+			dataset.SEX, 
+			dataset.PC1, 
+			dataset.PC2
+			))
+		# IAE V1,V2
+		CM_00 = nonlinear_outcome_model(
+			ct_0, 
+			ct_0, 
+			dataset.SEX, 
+			dataset.PC1, 
+			dataset.PC2
+		)
+		CM_10 = nonlinear_outcome_model(
+			ct_1, 
+			ct_0, 
+			dataset.SEX, 
+			dataset.PC1, 
+			dataset.PC2
+		)
+		CM_01 = nonlinear_outcome_model(
+			ct_0, 
+			ct_1, 
+			dataset.SEX, 
+			dataset.PC1, 
+			dataset.PC2
+		)
+		CM_11 = nonlinear_outcome_model(
+			ct_1, 
+			ct_1, 
+			dataset.SEX, 
+			dataset.PC1, 
+			dataset.PC2
+		)
+		AIE_01_01 = mean(CM_00 - CM_10 - CM_01 + CM_11)
+		return (ATE_V1=(ATE_V1_01, ATE_V1_12), AIE_V1_V2=(AIE_01_01,))
+	end
+
 	function approx_AIE_V1_V2_01_01(rng, covariates, LD_model, sex_dist;
 		V1 = "6:131602968:T:C_T",
 		V2 = "6:131610622:T:G_T",
@@ -522,17 +577,12 @@ begin
 end
 
 # ╔═╡ 3c9de2fe-7996-4bc4-8723-78996caa1e82
-nonlinear_dataset = generate_nonlinear_dataset(rng, covariates, LD_model, sex_dist;
+nonlinear_dataset, ground_truths = generate_nonlinear_dataset(
+	rng, covariates, LD_model, sex_dist;
 	V1 = V1,
 	V2 = V2,
 	n = 100_000
-	)
-
-# ╔═╡ 1543ea00-dec6-4531-8bdc-ca3a4cbe6440
-ATE_V1 = approx_ATE_V1(rng, covariates, LD_model, sex_dist;
-	V1 = V1,
-	V2 = V2,
-	n=500_000)
+)
 
 # ╔═╡ d36f9c8f-11e0-42fe-badb-eb4b7237ca8f
 md"""
@@ -619,8 +669,9 @@ end
 md"""
 !!! question "Questions"
 	Create new notebook cells to:
-	1. Estimate the ATE(T: 1 → 2), extract the point estimate and add it to the following plot.
-	2. Use the `Stack` or Super-Learner in the TMLE to fit either ``\bar{Q}(T,W)``, ``g(T, W)`` or both.
+	1. Are the results satisfactory ? Why ?
+	2. Estimate the ATE(T: 1 → 2), extract the point estimate and add it to the following plot.
+	3. Use the `Stack` or Super-Learner in the TMLE to fit either ``\bar{Q}(T,W)``, ``g(T, W)`` or both.
 """
 
 # ╔═╡ 64743cdc-c852-4bcc-a8a5-c5186f65732d
@@ -713,12 +764,11 @@ end
 
 # ╔═╡ e2382625-61e2-45f7-bd54-51e53e23aab6
 plot_estimation_results(
-	ATE_V1, 
+	ground_truths.ATE_V1, 
 	(linear_effect, linear_confint, "β (Linear Model)"),
 	(tmle_ATE_0_to_1_effect, tmle_ATE_0_to_1_confint, "TMLE 0 → 1"),
 	(tmle_stack_ATE_0_to_1_effect, tmle_stack_ATE_0_to_1_confint, "TMLE Stack 0 → 1"),
 	(tmle_ATE_1_to_2_effect, tmle_ATE_1_to_2_confint, "TMLE 1 → 2"),
-	
 	# Add more here
 )
 
@@ -763,13 +813,15 @@ md"""
 
 # ╔═╡ e50847e1-fc78-49fd-a8ee-3494f17f3648
 # Here for Question 1
-approx_AIE_V1_V2_01_01(rng, covariates, LD_model, sex_dist;
-		V1 = V1,
-		V2 = V2,
-		n=100_000)
+ground_truths.AIE_V1_V2
 
 # ╔═╡ 2ad0ca85-538d-4488-926c-b87a56b6629b
 # Here for Questions 2
+factorialEstimand(AIE, [:V1, :V2], :Y; 
+	confounders = [:PC1, :PC2], 
+	dataset = nonlinear_dataset,
+	outcome_extra_covariates=(:SEX,)
+)
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -3154,9 +3206,6 @@ version = "4.1.0+0"
 # ╠═7b4cb75b-86cf-43c8-b32a-159feb95e59f
 # ╠═0247c1ff-4c87-48bd-bb65-18be49d55130
 # ╠═8f86a930-b1dc-48d2-871d-673c5adeee75
-# ╠═ca130a71-d1d8-46d1-be00-c31ba8da1762
-# ╠═6f115c1c-530b-421d-ad6c-9c7a6d4667e5
-# ╠═460f9d81-f85b-4427-bade-7573ac0e1322
 # ╟─f7ea1ca0-fe62-41c1-9eb5-e35e6842f69c
 # ╟─c097871b-a349-4448-91ad-4c6c68786e98
 # ╠═b560a0d2-3349-4333-ae1b-3abae4fd6774
@@ -3166,9 +3215,8 @@ version = "4.1.0+0"
 # ╟─a896f42e-a697-4e68-9cc5-78297ec8e615
 # ╟─2259cefb-376c-4080-a0ad-2f2bdc9bd72d
 # ╠═46ca023e-7e33-47f2-927d-112a6659c708
-# ╠═f8520f83-8368-4768-9d06-aa3b4802dec0
+# ╟─f8520f83-8368-4768-9d06-aa3b4802dec0
 # ╠═3c9de2fe-7996-4bc4-8723-78996caa1e82
-# ╠═1543ea00-dec6-4531-8bdc-ca3a4cbe6440
 # ╟─d36f9c8f-11e0-42fe-badb-eb4b7237ca8f
 # ╠═6da7b36d-1e96-4d61-9c05-9ad73a7592a0
 # ╟─d75a5e2c-543d-4b5a-a67c-b8db02ad772f

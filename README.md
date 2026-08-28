@@ -2,12 +2,18 @@
 
 This repository hosts the tutorials I led during the [Causality in biomedicine: going beyond associations](https://www.ebi.ac.uk/training/events/causality-in-biomedicine-2026/) course at EMBL-EBI during the 4 – 9 October 2026.
 
+## Requirements
+
+You will need docker installed.
+
+
 ## Statistical Genetics : A Causal Inference Perspective
 
 
+Assuming the downloaded data is in `kgp`, run:
 
 ```bash
-docker run -p 1234:1234 -v $PWD/kgp:/workspaces/CAU26/kgp olivierlabayle/cau26:latest julia --project=. --startup-file=no -t auto -e 'import Pluto; Pluto.run(host="0.0.0.0", port=1234, launch_browser=false, sysimage="pluto_sys.so")'
+docker run -p 1234:1234 -v $PWD/kgp:/workspaces/CAU26/kgp olivierlabayle/cau26:latest julia --project=. --startup-file=no -t auto -e 'import Pluto; Pluto.sample_genotypes(rrun(host="0.0.0.0", port=1234, launch_browser=false, sysimage="pluto_sys.so")'
 ```
 
 ## Setup

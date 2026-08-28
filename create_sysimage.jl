@@ -7,6 +7,9 @@ mkpath("compile_env")
 open("compile_env/Project.toml", "w") do f
     write(f, nb.nbpkg_ctx.env.project_file |> read |> String)
 end
+open("compile_env/Manifest.toml", "w") do f
+    write(f, nb.nbpkg_ctx.env.manifest_file |> read |> String)
+end
 
 Pkg.activate("compile_env")
 Pkg.instantiate()
