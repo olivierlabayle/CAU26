@@ -66,7 +66,27 @@ Someone else (Your PI?) could try to reproduce your results.
 
 ## Reproducibility Showcase
 
-Let's assume I have created an amazing python script to process some data.
+Let's assume I have created an amazing python script to process some data. Here is my repository Readme.
 
+### Readme
 
+This repository hosts the code to reproduce the analyses for the paper blabla published in blablou.
 
+#### Requirements
+
+- pandas==3.0.1
+- numpy==2.4.2
+- matplotlib==3.10.8
+- csvkit==2.2.0
+
+#### Reproducing the analysis
+
+To reproduce, run:
+
+```bash
+python my_reproducible_analysis.py data.csv
+```
+
+!!! question "Question"
+    1. Did it work? 
+    2. What are the checklist elements that were well provided ? Those missing?
