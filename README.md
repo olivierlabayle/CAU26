@@ -84,9 +84,15 @@ This repository hosts the code to reproduce the analyses for the paper blabla pu
 To reproduce, run:
 
 ```bash
-python my_reproducible_analysis.py data.csv
+python my_reproducible_analysis.py data.csv output_plot.png
 ```
 
-!!! question "Question"
+!!! question "Questions"
     1. Did it work? 
     2. What are the checklist elements that were well provided ? Those missing?
+
+Now let's see another version, run:
+
+```bash
+git switch reproducible_research_2
+```
