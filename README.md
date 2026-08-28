@@ -33,6 +33,8 @@ In your terminal, run:
 git clone https://github.com/olivierlabayle/CAU26.git && git switch reproducible_research_1
 ```
 
+Then follow the Readme instructions.
+
 ## Developer Side
 
 - Building the Docker image:
