@@ -2,50 +2,62 @@
 
 This repository hosts the tutorials I led during the [Causality in biomedicine: going beyond associations](https://www.ebi.ac.uk/training/events/causality-in-biomedicine-2026/) course at EMBL-EBI during the 4 – 9 October 2026.
 
-## Requirements
+## Tutorials Requirements
 
-You will need docker installed.
+You will need:
 
+- [Git](https://git-scm.com/install/)
+- [Docker](https://docs.docker.com/engine/install/)
+- The 1000 GP data which can be downloaded [here](). However, future availability is not guaranteed, it can be regenerated (see "Developer Side" below).
 
-## Statistical Genetics : A Causal Inference Perspective
+### Statistical Genetics : A Causal Inference Perspective
 
-
-Assuming the downloaded data is in `kgp`, run:
-
-```bash
-docker run -p 1234:1234 -v $PWD/kgp:/workspaces/CAU26/kgp olivierlabayle/cau26:latest julia --project=. --startup-file=no -t auto -e 'import Pluto; Pluto.sample_genotypes(rrun(host="0.0.0.0", port=1234, launch_browser=false, sysimage="pluto_sys.so")'
-```
-
-## Setup
-
-0. Install [plink2](https://www.cog-genomics.org/plink/2.0/)
-
-1. Install Julia
+Assuming the downloaded data is in `kgp`, launch the notebook server with:
 
 ```bash
-curl -fsSL https://install.julialang.org | sh
+docker run \
+--platform linux/amd64 \
+-p 1234:1234 \
+-v $PWD/kgp:/workspaces/CAU26/kgp \
+olivierlabayle/cau26:latest \
+julia --project=. --startup-file=no -t auto -e 'import Pluto; Pluto.run(host="0.0.0.0", port=1234, launch_browser=false, sysimage="pluto_sys.so")'
 ```
 
-2. Setup the environment
+Then go to the displayed adress in your brower and open the `statistical_genetics.jl` notebook.
+
+### Reproducible Research Software and Data
+
+In your terminal, run:
 
 ```bash
-julia --project --startup-file=no -t auto -e 'using Pkg; Pkg.instantiate(); Pkg.precompile()'
+git switch reproducible_research_1
 ```
 
-3. Download the 1000 Genome Project data
+## Developer Side
+
+- Building the Docker image:
+
+```bash
+docker build -f .devcontainer/Dockerfile -t olivierlabayle/cau26 --target prod .
+```
+
+- Devevopment Environment
+
+Relies on dev containers, typically used with vs code.
+
+- Download the 1000 Genome Project data
 
 ```bash
 ./download_KGP.sh
 ```
 
-4. Run the notebook server
+- Running the notebook in the dev container:
 
 ```bash
 julia --project --startup-file=no -t auto -e 'import Pluto; Pluto.run(require_secret_for_access=false)'
 ```
 
-## Todo
+## Limitations
 
-
-- Currently variants are generated in a Markov chain which means that the current intervention method in the nonlinear model section is not really accurate => Use TMLE.jl copula approach to generate variants
-- Understand where potential random seed is not faithful
+- Currently variants are generated in a Markov chain which means that the current intervention method in the nonlinear model section is not really accurate but is probbaly enough for the purpose of this tutorial.
+- Results between the dev and prod environment seem to vary but not sure why
