@@ -12,13 +12,13 @@ You will need:
 
 ### Statistical Genetics : A Causal Inference Perspective
 
-Assuming the downloaded data is in `kgp`, launch the notebook server with:
+Assuming the downloaded data is in `cau26_data` (from your current directory), launch the notebook server with:
 
 ```bash
 docker run \
 --platform linux/amd64 \
 -p 1234:1234 \
--v $PWD/kgp:/workspaces/CAU26/kgp \
+-v $PWD/cau26_data:/workspaces/CAU26/kgp \
 olivierlabayle/cau26:latest \
 julia --project=. --startup-file=no -t auto -e 'import Pluto; Pluto.run(host="0.0.0.0", port=1234, launch_browser=false, sysimage="pluto_sys.so")'
 ```
