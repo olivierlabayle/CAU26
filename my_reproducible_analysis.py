@@ -9,6 +9,7 @@ import pandas as pd
 
 # Make randomness reproducible.
 SEED = 42
+B = 2000
 rng = np.random.default_rng(SEED)
 
 DATA_FILE, OUTPUT_FILE = sys.argv
@@ -26,7 +27,7 @@ for group in groups:
     # Random resampling with replacement.
     bootstrap_means = np.array([
         rng.choice(values, size=len(values), replace=True).mean()
-        for _ in range(2_000)
+        for _ in range(B)
     ])
 
     results[group] = {
