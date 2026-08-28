@@ -1,0 +1,4 @@
+B: 100
+SEED: 42
+DATA_FILE: assets/data.csv
+OUTPUT_FILE: myplot.png

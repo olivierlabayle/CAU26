@@ -6,13 +6,19 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import yaml
 
-# Make randomness reproducible.
-SEED = 42
-B = 100
-rng = np.random.default_rng()
+_, CONFIG_FILE = sys.argv
 
-_, DATA_FILE, OUTPUT_FILE = sys.argv
+with open(CONFIG_FILE, "r") as f:
+    config = yaml.safe_load(f)
+
+B = config["B"]
+SEED = config["SEED"]
+DATA_FILE = config["DATA_FILE"]
+OUTPUT_FILE = config["OUTPUT_FILE"]
+
+rng = np.random.default_rng(SEED)
 
 # 1. Read the input data.
 df = pd.read_csv(DATA_FILE)
