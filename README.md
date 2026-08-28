@@ -16,6 +16,7 @@ Assuming the downloaded data is in `cau26_data` (from your current directory), l
 
 ```bash
 docker run \
+--rm \
 --platform linux/amd64 \
 -p 1234:1234 \
 -v $PWD/cau26_data:/workspaces/CAU26/kgp \
