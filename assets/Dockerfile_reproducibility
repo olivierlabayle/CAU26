@@ -7,3 +7,7 @@ WORKDIR /opt/reproducibility
 COPY . /opt/reproducibility
 
 RUN uv sync
+
+ENTRYPOINT ["uv", "run", "my_reproducible_analysis.py"]
+
+CMD ["--help"]

@@ -81,7 +81,10 @@ Install [Docker](https://docs.docker.com/engine/install/).
 To reproduce, from this repository root, run:
 
 ```bash
-docker run olivierlabayle/cau26reproducibility:0.1.0
+docker run \
+--rm \
+-v $PWD/assets:/mnt/data \
+olivierlabayle/cau26reproducibility:0.1.0 /mnt/data/config.yaml
 ```
 
 !!! question "Questions"
@@ -89,14 +92,10 @@ docker run olivierlabayle/cau26reproducibility:0.1.0
     2. If you run it again, are the results the same?
     3. What are the checklist elements that were well provided ? Those missing?
 
-Now let's see another version, run:
-
 #### Building the Image
+
+We should probably also let people know how we built the image:
 
 ```bash
 docker build -f assets/Dockerfile_reproducibility -t olivierlabayle/cau26reproducibility:0.1.0 .
-```
-
-```bash
-git switch reproducible_research_4
 ```

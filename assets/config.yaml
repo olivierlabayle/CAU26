@@ -1,4 +1,4 @@
 B: 100
 SEED: 42
-DATA_FILE: assets/data.csv
-OUTPUT_FILE: myplot.png
+DATA_FILE: /mnt/data/data.csv
+OUTPUT_FILE: /mnt/data/myplot.png
