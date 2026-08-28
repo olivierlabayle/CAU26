@@ -74,18 +74,14 @@ This repository hosts the code to reproduce the analyses for the paper blabla pu
 
 #### Requirements
 
-Install [uv](https://docs.astral.sh/uv/getting-started/installation/):
-
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
+Install [Docker](https://docs.docker.com/engine/install/).
 
 #### Reproducing the analysis
 
 To reproduce, from this repository root, run:
 
 ```bash
-uv run my_reproducible_analysis.py assets/data.csv myplot.png
+docker run olivierlabayle/cau26reproducibility:0.1.0
 ```
 
 !!! question "Questions"
@@ -95,6 +91,12 @@ uv run my_reproducible_analysis.py assets/data.csv myplot.png
 
 Now let's see another version, run:
 
+#### Building the Image
+
 ```bash
-git switch reproducible_research_3
+docker build -f assets/Dockerfile_reproducibility -t olivierlabayle/cau26reproducibility:0.1.0 .
+```
+
+```bash
+git switch reproducible_research_4
 ```
