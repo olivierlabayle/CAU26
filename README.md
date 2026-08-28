@@ -30,7 +30,7 @@ Then go to the displayed adress in your brower and open the `statistical_genetic
 In your terminal, run:
 
 ```bash
-git switch reproducible_research_1
+git clone https://github.com/olivierlabayle/CAU26.git && git switch reproducible_research_1
 ```
 
 ## Developer Side

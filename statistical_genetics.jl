@@ -52,9 +52,10 @@ end
 # ╔═╡ 76d61a27-968c-4436-89d4-96b48c16be05
 begin
 	rng = Xoshiro(123)
-	ancestry_file=joinpath("kgp", "integrated_call_samples_v3.20130502.ALL.panel")
-	pcs_file=joinpath("kgp", "KGP_merged_pca.eigenvec")
-	genotypes_prefix = joinpath("kgp", "KGP_merged")
+	data_dir = "cau26_data"
+	ancestry_file=joinpath(data_dir, "integrated_call_samples_v3.20130502.ALL.panel")
+	pcs_file=joinpath(data_dir, "KGP_merged_pca.eigenvec")
+	genotypes_prefix = joinpath(data_dir, "KGP_merged")
 	# Covariates
 	pcs = CSV.read(pcs_file, DataFrame)
 	ancestries = CSV.read(ancestry_file, DataFrame; 
@@ -76,6 +77,7 @@ function plotLD(;chr=1, bp_start=100_000_000, window=2_000_000)
 	tmpdir   = mktempdir()
     out_prefix = joinpath(tmpdir, "$(chr)_$(bp_start)_$(bp_end)")
 	run(`plink2 --pfile $(genotypes_prefix) \
+        --memory 4000 \
         --r2-unphased square \
         --chr $chr \
         --from-bp $(bp_start) \
@@ -272,6 +274,7 @@ begin
 		genotypes_region_prefix = joinpath(tmpdir, "genotypes")
 		run(`plink2 \
 			--pfile $genotypes_prefix \
+			--memory 4000 \
 			--export A \
 			--out $genotypes_region_prefix \
 			--chr $chr \
@@ -3187,7 +3190,7 @@ version = "4.1.0+0"
 # ╟─91689954-fed3-4380-8d15-16c3954a5b46
 # ╟─c6aeb8e6-ff54-4874-a507-fb94d19179d0
 # ╟─d0b2e225-292e-4b8b-b91c-743a6c72ab90
-# ╟─2995e9b6-bbe6-4560-9256-77cc5dd735ea
+# ╠═2995e9b6-bbe6-4560-9256-77cc5dd735ea
 # ╠═76d61a27-968c-4436-89d4-96b48c16be05
 # ╟─7289158a-4d08-476a-97d7-907940ef5b91
 # ╟─045e7bb8-f4eb-4bac-9b1c-30687b2d77f8
@@ -3202,7 +3205,7 @@ version = "4.1.0+0"
 # ╟─4c3eb4e9-4e80-4581-8570-fed7f6ad58fa
 # ╟─d9ae30d4-396c-4688-89bd-17910d042253
 # ╟─db080d57-3e4e-405c-9a3e-e71ddf4273f6
-# ╟─b65c289d-df63-4266-b1f7-64177ba21d97
+# ╠═b65c289d-df63-4266-b1f7-64177ba21d97
 # ╠═7b4cb75b-86cf-43c8-b32a-159feb95e59f
 # ╠═0247c1ff-4c87-48bd-bb65-18be49d55130
 # ╠═8f86a930-b1dc-48d2-871d-673c5adeee75
