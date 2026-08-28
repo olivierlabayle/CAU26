@@ -8,7 +8,7 @@ You will need:
 
 - [Git](https://git-scm.com/install/)
 - [Docker](https://docs.docker.com/engine/install/)
-- The 1000 GP data which can be downloaded [here](). However, future availability is not guaranteed, it can be regenerated (see "Developer Side" below).
+- The 1000 GP data which can be downloaded [here](https://drive.google.com/file/d/10qVlGHDOAyrffQKQZHK1FIfDCQJ5KPY6/view?usp=drive_link) and decompressed with `tar -xzf cau26_data.tar.gz`. However, future availability is not guaranteed, it can be regenerated (see "Developer Side" below).
 
 ### Statistical Genetics : A Causal Inference Perspective
 
