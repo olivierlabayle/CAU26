@@ -74,25 +74,27 @@ This repository hosts the code to reproduce the analyses for the paper blabla pu
 
 #### Requirements
 
-- pandas==3.0.1
-- numpy==2.4.2
-- matplotlib==3.10.8
-- csvkit==2.2.0
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/):
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
 
 #### Reproducing the analysis
 
-To reproduce, run:
+To reproduce, from this repository root, run:
 
 ```bash
-python my_reproducible_analysis.py data.csv output_plot.png
+uv run my_reproducible_analysis.py assets/data.csv myplot.png
 ```
 
 !!! question "Questions"
     1. Did it work? 
-    2. What are the checklist elements that were well provided ? Those missing?
+    2. If you run it again, are the results the same?
+    3. What are the checklist elements that were well provided ? Those missing?
 
 Now let's see another version, run:
 
 ```bash
-git switch reproducible_research_2
+git switch reproducible_research_3
 ```

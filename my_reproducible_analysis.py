@@ -9,10 +9,10 @@ import pandas as pd
 
 # Make randomness reproducible.
 SEED = 42
-B = 2000
-rng = np.random.default_rng(SEED)
+B = 100
+rng = np.random.default_rng()
 
-DATA_FILE, OUTPUT_FILE = sys.argv
+_, DATA_FILE, OUTPUT_FILE = sys.argv
 
 # 1. Read the input data.
 df = pd.read_csv(DATA_FILE)
@@ -35,21 +35,6 @@ for group in groups:
         "ci_low": np.percentile(bootstrap_means, 2.5),
         "ci_high": np.percentile(bootstrap_means, 97.5),
     }
-
-# 3. Call an external command-line tool.
-# csvstat is provided by the separate "csvkit" package.
-csvstat = shutil.which("csvstat")
-if csvstat is None:
-    sys.exit(
-        "ERROR: csvstat was not found. Install the external CLI dependency "
-        "with: pip install csvkit"
-    )
-
-print("External CLI output:")
-subprocess.run(
-    [csvstat, "--count", "--mean", str(DATA_FILE)],
-    check=True,
-)
 
 # 4. Create a plot.
 labels = list(results)
