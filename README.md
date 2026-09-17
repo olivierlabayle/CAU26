@@ -64,19 +64,15 @@ Someone else (Your PI?) could try to reproduce your results.
 !!! warning "Personal Opinion"
     Full reproducibility is difficult and usually an unachievable goal. However... It doesn't mean we shouldn't try our best to reach it.
 
-## Reproducibility Showcase
-
-Let's assume I have created an amazing python script to process some data. Here is my repository Readme.
-
-### Readme
+# Readme
 
 This repository hosts the code to reproduce the analyses for the paper blabla published in blablou.
 
-#### Requirements
+## Requirements
 
 Install [Docker](https://docs.docker.com/engine/install/).
 
-#### Reproducing the analysis
+## Reproducing the analysis
 
 To reproduce, from this repository root, run:
 
@@ -92,7 +88,7 @@ olivierlabayle/cau26reproducibility:0.1.0 /mnt/data/config.yaml
     2. If you run it again, are the results the same?
     3. What are the checklist elements that were well provided ? Those missing?
 
-#### Building the Image
+## Building the Image
 
 We should probably also let people know how we built the image:
 
