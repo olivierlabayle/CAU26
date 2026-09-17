@@ -49,6 +49,6 @@ COPY . /workspaces/CAU26
 
 WORKDIR /workspaces/CAU26
 
-RUN julia --project=. -e 'using Pkg; Pkg.instantiate()'
+RUN julia --project=. -e 'using Pkg; Pkg.instantiate(); Pkg.precompile()'
 
 RUN julia --project=. create_sysimage.jl

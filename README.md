@@ -10,7 +10,7 @@ You will need:
 - [Docker](https://docs.docker.com/engine/install/)
 - The 1000 GP data which can be downloaded [here](https://drive.google.com/file/d/10qVlGHDOAyrffQKQZHK1FIfDCQJ5KPY6/view?usp=drive_link) and decompressed with `tar -xzf cau26_data.tar.gz`. However, future availability is not guaranteed, it can be regenerated (see "Developer Side" below).
 
-### Statistical Genetics : A Causal Inference Perspective
+## Statistical Genetics : A Causal Inference Perspective
 
 Assuming the downloaded data is in `cau26_data` (from your current directory), launch the notebook server with:
 
@@ -26,7 +26,7 @@ julia --project=. --startup-file=no -t auto -e 'import Pluto; Pluto.run(host="0.
 
 Then go to the displayed adress in your brower and open the `statistical_genetics.jl` notebook.
 
-### Reproducible Research Software and Data
+## Reproducible Research Software and Data
 
 Open this repository in VS Code. Then, open a terminal and run:
 
@@ -38,15 +38,17 @@ Then follow the Readme instructions.
 
 ## Developer Side
 
-- Building the Docker image:
+This is only for reference as evolution of this repository is unlikely.
+
+- Building the Statistical Genetics's Docker image:
 
 ```bash
 docker build -f .devcontainer/Dockerfile -t olivierlabayle/cau26 --target prod .
 ```
 
-- Devevopment Environment
+- Development Environment
 
-Relies on dev containers, typically used with vs code.
+It relies on dev containers, typically used within VS Code.
 
 - Download the 1000 Genome Project data
 
@@ -62,5 +64,5 @@ julia --project --startup-file=no -t auto -e 'import Pluto; Pluto.run(require_se
 
 ## Limitations
 
-- Currently variants are generated in a Markov chain which means that the current intervention method in the nonlinear model section is not really accurate but is probbaly enough for the purpose of this tutorial.
-- Results between the dev and prod environment seem to vary but not sure why
+- Currently variants are generated in a Markov chain which means that the current intervention method in the nonlinear model section is not really accurate but is probably enough for the purpose of this tutorial (we are not really investigating LD).
+- Results between the dev and prod environment seem to vary, I am not sure why.
