@@ -28,10 +28,10 @@ Then go to the displayed adress in your brower and open the `statistical_genetic
 
 ### Reproducible Research Software and Data
 
-In your terminal, run:
+Open this repository in VS Code. Then, open a terminal and run:
 
 ```bash
-git clone https://github.com/olivierlabayle/CAU26.git && git switch reproducible_research_1
+git switch reproducible_research_1
 ```
 
 Then follow the Readme instructions.
