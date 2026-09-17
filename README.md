@@ -66,20 +66,19 @@ Someone else (Your PI?) could try to reproduce your results.
 
 ## Reproducibility Showcase
 
-Let's assume I have created an amazing python script to process some data. Here is my repository Readme.
+Let's assume I have created an amazing python project to process some data, run a statistical analysis and generate a summary plot. I want to make this analysis reproducible and share it with the scientific community, here is my first attempt.
 
-### Readme
+# Readme
 
 This repository hosts the code to reproduce the analyses for the paper blabla published in blablou.
 
-#### Requirements
+## Requirements
 
 - pandas==3.0.1
 - numpy==2.4.2
 - matplotlib==3.10.8
-- csvkit==2.2.0
 
-#### Reproducing the analysis
+## Reproducing the Analysis
 
 To reproduce, run:
 
@@ -88,11 +87,17 @@ python my_reproducible_analysis.py data.csv output_plot.png
 ```
 
 !!! question "Questions"
-    1. Did it work? 
-    2. What are the checklist elements that were well provided ? Those missing?
+    1. Did it work? How much work did 
+    2. What elements contributed to the reproducibility of the analysis ? Which were missing?
+
+!!! tip "VM Restrictions"
+    Due to privilege restrictions on the virtual machine you will not be able to use `pip install`. Instead `uv` is already installed and you can use the following:
+    - `uv init` to initialize the environment
+    - `uv add pkg==version1 pkg==version2` to add packages to it
+    - `uv run python ...` to run a script
 
 Now let's see another version, run:
 
 ```bash
-git switch reproducible_research_2
+git clean -f . && git switch reproducible_research_2
 ```
