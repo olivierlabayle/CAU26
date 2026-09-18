@@ -49,10 +49,48 @@ function plotLD(correlations)
 	return fig, correlations
 end
 
+# ╔═╡ 92ebad39-cc5c-492c-9155-a9a9f47afb74
+function plot_estimation_results(ATE_V1, results...)
+	n = length(results)
+	colors = distinguishable_colors(
+		n, 
+		[RGB(1,1,1), RGB(0,0,0)], 
+		dropseed=true
+	)
+	fig = Figure()
+	ax = Axis(fig[1, 1])
+	xs = 0:0.1:n+1
+	scatter!(ax, xs, fill(ATE_V1[1], length(xs)), 
+		markersize=8, 
+		marker=:star5, 
+		color=:black, 
+		label="ATE(V1: 0 → 1)"
+	)
+	scatter!(ax, xs, fill(ATE_V1[2], length(xs)), 
+		markersize=8, 
+		marker=:circle, 
+		color=:black, 
+		label="ATE(V1: 1 → 2)"
+	)
+	for (result_id, result) in enumerate(results)
+		estimate, (lb, ub), label = result
+		errorbars!(ax, [result_id], [estimate], [ub - estimate],
+    		color = [colors[result_id]],
+    		whiskerwidth = 10
+		)
+		scatter!(ax, result_id, estimate, 
+				 color=colors[result_id], 
+				 label=label
+		)
+	end
+	fig[1, 2] = axislegend(tellheight=false)
+	return fig
+end
+
 # ╔═╡ 76d61a27-968c-4436-89d4-96b48c16be05
 begin
+	data_dir = "cau26_data" # Change this if needed
 	rng = Xoshiro(123)
-	data_dir = "cau26_data"
 	ancestry_file=joinpath(data_dir, "integrated_call_samples_v3.20130502.ALL.panel")
 	pcs_file=joinpath(data_dir, "KGP_merged_pca.eigenvec")
 	genotypes_prefix = joinpath(data_dir, "KGP_merged")
@@ -417,8 +455,8 @@ md"""We will use these two variants as an example"""
 # ╔═╡ 46ca023e-7e33-47f2-927d-112a6659c708
 begin
     V1 = "6:120000928:G:A_G"
-    #V2 = "6:120001440:G:A_G"
     V2 = "6:120000088:G:A_G"
+    #V2 = "6:120001440:G:A_G"
 end;
 
 # ╔═╡ f8520f83-8368-4768-9d06-aa3b4802dec0
@@ -597,6 +635,10 @@ begin
 	linear_results = lm(@formula(Y ~ V1 + V2 + PC1 + PC2 + SEX), nonlinear_dataset)
 	linear_effect = coef(linear_results)[2]
 	linear_confint = confint(linear_results)[2, :]
+	plot_estimation_results(
+		ground_truths.ATE_V1, 
+		(linear_effect, linear_confint, "β (Linear Model)"),
+	)
 end
 
 # ╔═╡ d75a5e2c-543d-4b5a-a67c-b8db02ad772f
@@ -651,6 +693,40 @@ begin
 	)
 	tmle = Tmle(models=models)
 	# Define the quantity of interest
+	ATE_1_to_2 = ATE(
+		outcome=:Y, 
+		treatment_values=(V1=(case=2, control=1),),
+		treatment_confounders=(:PC1, :PC2, :V2),
+		outcome_extra_covariates=(:SEX,)
+	)
+	# Estimate it on the datset
+	tmle_ATE_1_to_2, _ = tmle(ATE_1_to_2, nonlinear_dataset, verbosity=0)
+	# We extract the point estimate and confidence interval for plotting
+	tmle_ATE_1_to_2_effect = estimate(tmle_ATE_1_to_2)
+	tmle_ATE_1_to_2_confint = confint(significance_test(tmle_ATE_1_to_2))
+
+	tmle_ATE_1_to_2
+end
+
+# ╔═╡ 1910b622-308e-42c3-8cc7-bc5ebcff349c
+plot_estimation_results(
+	ground_truths.ATE_V1, 
+	(linear_effect, linear_confint, "β (Linear Model)"),
+	(tmle_ATE_1_to_2_effect, tmle_ATE_1_to_2_confint, "TMLE 1 → 2")
+)
+
+# ╔═╡ 13663c42-1ac9-4c9c-8ccf-50b8e4220573
+md"""
+!!! question "Questions"
+	Create new notebook cells to:
+	1. Are the results satisfactory ?
+	2. Estimate the ATE(T: 0 → 1), extract the point estimate and add it to the following plot. Are the results satisfactory?
+	3. Use the `Stack` or Super-Learner in the TMLE to fit either ``\bar{Q}(T,W)``, ``g(T, W)`` or both.
+"""
+
+# ╔═╡ 64743cdc-c852-4bcc-a8a5-c5186f65732d
+begin
+	# Here for Question 2.
 	ATE_0_to_1 = ATE(
 		outcome=:Y, 
 		treatment_values=(V1=(case=1, control=0),),
@@ -666,32 +742,13 @@ begin
 	tmle_ATE_0_to_1
 end
 
-# ╔═╡ 13663c42-1ac9-4c9c-8ccf-50b8e4220573
-md"""
-!!! question "Questions"
-	Create new notebook cells to:
-	1. Are the results satisfactory ? Why ?
-	2. Estimate the ATE(T: 1 → 2), extract the point estimate and add it to the following plot.
-	3. Use the `Stack` or Super-Learner in the TMLE to fit either ``\bar{Q}(T,W)``, ``g(T, W)`` or both.
-"""
-
-# ╔═╡ 64743cdc-c852-4bcc-a8a5-c5186f65732d
-begin
-	# Here for Question 1.
-	ATE_1_to_2 = ATE(
-		outcome=:Y, 
-		treatment_values=(V1=(case=2, control=1),),
-		treatment_confounders=(:PC1, :PC2, :V2),
-		outcome_extra_covariates=(:SEX,)
-	)
-	# Estimate it on the datset
-	tmle_ATE_1_to_2, _ = tmle(ATE_1_to_2, nonlinear_dataset, verbosity=0)
-	# We extract the point estimate and confidence interval for plotting
-	tmle_ATE_1_to_2_effect = estimate(tmle_ATE_1_to_2)
-	tmle_ATE_1_to_2_confint = confint(significance_test(tmle_ATE_1_to_2))
-	
-	tmle_ATE_1_to_2
-end
+# ╔═╡ af3bb036-7314-45f0-a446-cb2007bb3bbd
+plot_estimation_results(
+	ground_truths.ATE_V1, 
+	(linear_effect, linear_confint, "β (Linear Model)"),
+	(tmle_ATE_0_to_1_effect, tmle_ATE_0_to_1_confint, "TMLE 0 → 1"),
+	(tmle_ATE_1_to_2_effect, tmle_ATE_1_to_2_confint, "TMLE 1 → 2"),
+)
 
 # ╔═╡ c1609d9f-76b1-4f05-b2fb-4f17c3401e13
 begin
@@ -711,7 +768,7 @@ begin
 		et6=EvoTreeClassifier(max_depth=6),
 		et3=EvoTreeClassifier(max_depth=3)
 	)
-	# Here for Question 2.
+	# Here for Question 3.
 	models_stack = default_models(
 		G = G_stack, 
 		Q_continuous = Q_simple_stack
@@ -723,58 +780,39 @@ begin
 	tmle_stack_ATE_0_to_1_confint = confint(significance_test(tmle_stack_ATE_0_to_1))
 
 	tmle_stack_ATE_0_to_1
+
+	plot_estimation_results(
+		ground_truths.ATE_V1, 
+		(linear_effect, linear_confint, "β (Linear Model)"),
+		(tmle_stack_ATE_0_to_1_effect, tmle_stack_ATE_0_to_1_confint, "TMLE Stack 0 → 1"),
+		(tmle_ATE_1_to_2_effect, tmle_ATE_1_to_2_confint, "TMLE 1 → 2"),
+	)
 end
 
-# ╔═╡ e8f0b241-a285-4546-83f8-00ac7c8a08f3
-function plot_estimation_results(ATE_V1, results...)
-	n = length(results)
-	colors = distinguishable_colors(
-		n, 
-		[RGB(1,1,1), RGB(0,0,0)], 
-		dropseed=true
+# ╔═╡ 7ff2364c-0344-4bbd-943b-93d618ba59e2
+md"""
+#### Variant-Level testing
+Linear models (GWAS) give us a p-value at the variant level. But so far, we've computed effect sizes, p-values and confidence intervals for each variant's genotype **change**. We can do something similar to GWAS by testing whether **any** of the changes is significant. Because the changes are not independent, we use a Hotelling T-Test.
+"""
+
+# ╔═╡ e87b1a27-2aa8-4d11-8cf5-5b832180c4fe
+begin
+	# First we define the estimand
+	V1_ATE = factorialEstimand(
+		ATE,
+		(V1=[0, 1, 2],),
+		:Y,
+		confounders=(:PC1, :PC2, :V2),
+		outcome_extra_covariates=(:SEX,)
 	)
-	fig = Figure()
-	ax = Axis(fig[1, 1])
-	xs = 0:0.1:n+1
-	scatter!(ax, xs, fill(ATE_V1[1], length(xs)), 
-		markersize=8, 
-		marker=:star5, 
-		color=:black, 
-		label="ATE(V1: 0 → 1)"
-	)
-	scatter!(ax, xs, fill(ATE_V1[2], length(xs)), 
-		markersize=8, 
-		marker=:circle, 
-		color=:black, 
-		label="ATE(V1: 1 → 2)"
-	)
-	for (result_id, result) in enumerate(results)
-		estimate, (lb, ub), label = result
-		errorbars!(ax, [result_id], [estimate], [ub - estimate],
-    		color = [colors[result_id]],
-    		whiskerwidth = 10
-		)
-		scatter!(ax, result_id, estimate, 
-				 color=colors[result_id], 
-				 label=label
-		)
-	end
-	fig[1, 2] = axislegend(tellheight=false)
-	return fig
 end
 
-# ╔═╡ e2382625-61e2-45f7-bd54-51e53e23aab6
-plot_estimation_results(
-	ground_truths.ATE_V1, 
-	(linear_effect, linear_confint, "β (Linear Model)"),
-	(tmle_ATE_0_to_1_effect, tmle_ATE_0_to_1_confint, "TMLE 0 → 1"),
-	(tmle_stack_ATE_0_to_1_effect, tmle_stack_ATE_0_to_1_confint, "TMLE Stack 0 → 1"),
-	(tmle_ATE_1_to_2_effect, tmle_ATE_1_to_2_confint, "TMLE 1 → 2"),
-	# Add more here
-)
-
-# ╔═╡ 68574671-1558-46ba-9b5e-e10553e52398
-combine(groupby(nonlinear_dataset, [:V1, :V2]), nrow, proprow)
+# ╔═╡ 03979afa-42f8-4b2c-b727-62340d1c0046
+begin
+	# Then we estimate it
+	V1_ATE_result, _ = tmle(V1_ATE, nonlinear_dataset, verbosity=0)
+	V1_ATE_result
+end
 
 # ╔═╡ 561d6e0c-b272-42d1-ba24-26cbf0e4b217
 md"""
@@ -867,7 +905,7 @@ TMLE = "~0.20.4"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.12.6"
+julia_version = "1.12.7"
 manifest_format = "2.0"
 project_hash = "ad4afe8767f9beb6a0706bb8ad2b4794caa15dc8"
 
@@ -1268,7 +1306,7 @@ weakdeps = ["Dates", "LinearAlgebra"]
 [[deps.CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "e66e0078-7015-5450-92f7-15fbd957f2ae"
-version = "1.3.0+1"
+version = "1.3.1+2"
 
 [[deps.CompositionsBase]]
 git-tree-sha1 = "802bb88cd69dfd1509f6670416bd4434015693ad"
@@ -2354,7 +2392,7 @@ version = "0.8.7+0"
 [[deps.OpenSSL_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "458c3c95-2e84-50aa-8efc-19380b2a3a95"
-version = "3.5.4+0"
+version = "3.5.6+0"
 
 [[deps.OpenSpecFun_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl"]
@@ -3189,6 +3227,7 @@ version = "4.1.0+0"
 # ╟─c6aeb8e6-ff54-4874-a507-fb94d19179d0
 # ╟─d0b2e225-292e-4b8b-b91c-743a6c72ab90
 # ╟─2995e9b6-bbe6-4560-9256-77cc5dd735ea
+# ╟─92ebad39-cc5c-492c-9155-a9a9f47afb74
 # ╠═76d61a27-968c-4436-89d4-96b48c16be05
 # ╟─7289158a-4d08-476a-97d7-907940ef5b91
 # ╟─045e7bb8-f4eb-4bac-9b1c-30687b2d77f8
@@ -3223,12 +3262,14 @@ version = "4.1.0+0"
 # ╟─d75a5e2c-543d-4b5a-a67c-b8db02ad772f
 # ╟─132adb4b-def9-48c1-a5dc-a3d452052232
 # ╠═2819d2a0-95be-4c50-816c-b1a20a1d1547
+# ╠═1910b622-308e-42c3-8cc7-bc5ebcff349c
 # ╟─13663c42-1ac9-4c9c-8ccf-50b8e4220573
 # ╠═64743cdc-c852-4bcc-a8a5-c5186f65732d
+# ╠═af3bb036-7314-45f0-a446-cb2007bb3bbd
 # ╠═c1609d9f-76b1-4f05-b2fb-4f17c3401e13
-# ╟─e8f0b241-a285-4546-83f8-00ac7c8a08f3
-# ╠═e2382625-61e2-45f7-bd54-51e53e23aab6
-# ╠═68574671-1558-46ba-9b5e-e10553e52398
+# ╟─7ff2364c-0344-4bbd-943b-93d618ba59e2
+# ╠═e87b1a27-2aa8-4d11-8cf5-5b832180c4fe
+# ╠═03979afa-42f8-4b2c-b727-62340d1c0046
 # ╟─561d6e0c-b272-42d1-ba24-26cbf0e4b217
 # ╠═5d200017-6b70-4c26-9910-fafde19f95d0
 # ╟─ea3e79ff-25db-416c-8d46-59cdc01a806d

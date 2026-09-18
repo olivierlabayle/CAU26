@@ -12,7 +12,15 @@ You will need:
 
 ## Statistical Genetics : A Causal Inference Perspective
 
-Assuming the downloaded data is in `cau26_data` (from your current directory), launch the notebook server with:
+For the EBI course, all dependencies have been installed on the VM, you can launch the notebook server as:
+
+```bash
+julia --project=. --startup-file=no -t 6 -e 'import Pluto; Pluto.run()'
+```
+
+Then go to the displayed adress in your brower and open the `statistical_genetics.jl` notebook.
+
+For other users interested in running the notebook, a docker image is also provided (but performance might not be optimal) and can be run as follows:
 
 ```bash
 docker run \
@@ -23,8 +31,6 @@ docker run \
 olivierlabayle/cau26:latest \
 julia --project=. --startup-file=no -t auto -e 'import Pluto; Pluto.run(host="0.0.0.0", port=1234, launch_browser=false, sysimage="pluto_sys.so")'
 ```
-
-Then go to the displayed adress in your brower and open the `statistical_genetics.jl` notebook.
 
 ## Reproducible Research Software and Data
 
@@ -50,6 +56,8 @@ docker build -f .devcontainer/Dockerfile -t olivierlabayle/cau26 --target prod .
 
 It relies on dev containers, typically used within VS Code.
 
+Install the Remote Development extension and open the folder in the 
+
 - Download the 1000 Genome Project data
 
 ```bash
@@ -64,5 +72,5 @@ julia --project --startup-file=no -t auto -e 'import Pluto; Pluto.run(require_se
 
 ## Limitations
 
-- Currently variants are generated in a Markov chain which means that the current intervention method in the nonlinear model section is not really accurate but is probably enough for the purpose of this tutorial (we are not really investigating LD).
+- Currently variants are generated in a Markov chain which means that the current intervention method (to obtain ground truth estimate) in the nonlinear model section is not really accurate but is probably enough for the purpose of this tutorial (we are not really investigating LD).
 - Results between the dev and prod environment seem to vary, I am not sure why.
