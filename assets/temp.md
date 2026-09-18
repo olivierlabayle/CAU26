@@ -11,15 +11,9 @@ ATE_{Y, V} = \begin{cases}
 
 - Linear model on non-linear dataset
 
-begin
-	linear_results = lm(@formula(Y ~ V1 + V2 + PC1 + PC2 + SEX), nonlinear_dataset)
-	linear_effect = coef(linear_results)[2]
-	linear_confint = confint(linear_results)[2, :]
-end
-
-- Positivity
-
-combine(groupby(nonlinear_dataset, [:V1, :V2]), nrow, proprow)
+linear_results = lm(@formula(Y ~ V1 + V2 + PC1 + PC2 + SEX), nonlinear_dataset)
+linear_effect = coef(linear_results)[2]
+linear_confint = confint(linear_results)[2, :]
 
 - tmle 0 -> 1
 
@@ -37,6 +31,10 @@ tmle_ATE_0_to_1_confint = confint(significance_test(tmle_ATE_0_to_1))
 
 tmle_ATE_0_to_1
 
+- Positivity
+
+combine(groupby(nonlinear_dataset, [:V1, :V2]), nrow, proprow)
+
 - Stack:
 
 models_stack = default_models(
@@ -50,3 +48,15 @@ tmle_stack_ATE_0_to_1_effect = estimate(tmle_stack_ATE_0_to_1)
 tmle_stack_ATE_0_to_1_confint = confint(significance_test(tmle_stack_ATE_0_to_1))
 
 tmle_stack_ATE_0_to_1
+
+- Interaction Ground truth
+
+ground_truths.AIE_V1_V2
+
+- Interaction estimate
+
+factorialEstimand(AIE, [:V1, :V2], :Y; 
+	confounders = [:PC1, :PC2], 
+	dataset = nonlinear_dataset,
+	outcome_extra_covariates=(:SEX,)
+)

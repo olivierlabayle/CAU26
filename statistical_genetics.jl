@@ -632,9 +632,7 @@ md"""
 
 # ╔═╡ 6da7b36d-1e96-4d61-9c05-9ad73a7592a0
 begin
-	linear_results = lm(@formula(Y ~ V1 + V2 + PC1 + PC2 + SEX), nonlinear_dataset)
-	linear_effect = coef(linear_results)[2]
-	linear_confint = confint(linear_results)[2, :]
+	# Code here
 	plot_estimation_results(
 		ground_truths.ATE_V1, 
 		(linear_effect, linear_confint, "β (Linear Model)"),
@@ -727,19 +725,7 @@ md"""
 # ╔═╡ 64743cdc-c852-4bcc-a8a5-c5186f65732d
 begin
 	# Here for Question 2.
-	ATE_0_to_1 = ATE(
-		outcome=:Y, 
-		treatment_values=(V1=(case=1, control=0),),
-		treatment_confounders=(:PC1, :PC2, :V2),
-		outcome_extra_covariates=(:SEX,)
-	)
-	# Estimate it on the datset
-	tmle_ATE_0_to_1, _ = tmle(ATE_0_to_1, nonlinear_dataset, verbosity=0)
-	# We extract the point estimate and confidence interval for plotting
-	tmle_ATE_0_to_1_effect = estimate(tmle_ATE_0_to_1)
-	tmle_ATE_0_to_1_confint = confint(significance_test(tmle_ATE_0_to_1))
-	
-	tmle_ATE_0_to_1
+
 end
 
 # ╔═╡ af3bb036-7314-45f0-a446-cb2007bb3bbd
@@ -769,17 +755,6 @@ begin
 		et3=EvoTreeClassifier(max_depth=3)
 	)
 	# Here for Question 3.
-	models_stack = default_models(
-		G = G_stack, 
-		Q_continuous = Q_simple_stack
-	)
-	tmle_stack = Tmle(models=models_stack)
-	tmle_stack_ATE_0_to_1, _ = tmle_stack(ATE_0_to_1, nonlinear_dataset, verbosity=0)
-	# We extract the point estimate and confidence interval for plotting
-	tmle_stack_ATE_0_to_1_effect = estimate(tmle_stack_ATE_0_to_1)
-	tmle_stack_ATE_0_to_1_confint = confint(significance_test(tmle_stack_ATE_0_to_1))
-
-	tmle_stack_ATE_0_to_1
 
 	plot_estimation_results(
 		ground_truths.ATE_V1, 
@@ -852,15 +827,11 @@ md"""
 
 # ╔═╡ e50847e1-fc78-49fd-a8ee-3494f17f3648
 # Here for Question 1
-ground_truths.AIE_V1_V2
+
 
 # ╔═╡ 2ad0ca85-538d-4488-926c-b87a56b6629b
 # Here for Questions 2
-factorialEstimand(AIE, [:V1, :V2], :Y; 
-	confounders = [:PC1, :PC2], 
-	dataset = nonlinear_dataset,
-	outcome_extra_covariates=(:SEX,)
-)
+
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
