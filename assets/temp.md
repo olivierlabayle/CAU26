@@ -9,11 +9,26 @@ ATE_{Y, V} = \begin{cases}
 ```
 """
 
+- What is the definition of the ATE in this model? What assumption does it make compared to the initial definition we discussed?
+
+The ATE is alpha
+
+- Can you compute it exactly? Yes
+
+- Is the ATE correctly recovered by the estimator? Yes
+
+- Does it matter whether PC1 and PC2 are adjusted for in this case? What do you conclude? PC1 and PC2 are not strongly ocnfounding the effect of this variant.
+
 - Linear model on non-linear dataset
+
+- What is the ATE? Can you compute it? Not exactly but can be approximated by MC.
 
 linear_results = lm(@formula(Y ~ V1 + V2 + PC1 + PC2 + SEX), nonlinear_dataset)
 linear_effect = coef(linear_results)[2]
 linear_confint = confint(linear_results)[2, :]
+
+- Do you think this will work? Talk about double robustness.
+
 
 - tmle 0 -> 1
 

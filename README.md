@@ -32,6 +32,14 @@ olivierlabayle/cau26:latest \
 julia --project=. --startup-file=no -t auto -e 'import Pluto; Pluto.run(host="0.0.0.0", port=1234, launch_browser=false, sysimage="pluto_sys.so")'
 ```
 
+Note that you will need to regenerate the data as explained below.
+
+The notebook with solutions can be accessed with:
+
+```bash
+git checkout with-solutions
+```
+
 ## Reproducible Research Software and Data
 
 Open this repository in VS Code. Then, open a terminal and run:
